@@ -1,0 +1,94 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getCoupons, createCoupon, updateCoupon, deleteCoupon } from '@/lib/db';
+import { checkAdminAuth } from '@/lib/adminAuth';
+
+export async function GET(request: NextRequest) {
+  try {
+    const auth = checkAdminAuth(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+    const coupons = getCoupons();
+    return NextResponse.json({ success: true, coupons });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const auth = checkAdminAuth(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    if (!body.code || body.discountPercent === undefined) {
+      return NextResponse.json({ success: false, message: 'Code and discount percentage are required' }, { status: 400 });
+    }
+
+    const newCoupon = {
+      code: body.code.toUpperCase().trim(),
+      discountPercent: Number(body.discountPercent),
+      maxDiscount: body.maxDiscount ? Number(body.maxDiscount) : undefined,
+      minOrder: Number(body.minOrder || 0),
+      description: body.description || `${body.discountPercent}% off on luxury orders`,
+      active: body.active !== undefined ? body.active : true,
+      expiresAt: body.expiresAt || '2026-12-31',
+    };
+
+    const created = createCoupon(newCoupon, auth.email);
+    return NextResponse.json({ success: true, coupon: created }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const auth = checkAdminAuth(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { code, updates } = body;
+    if (!code || !updates) {
+      return NextResponse.json({ success: false, message: 'Code and updates are required' }, { status: 400 });
+    }
+
+    const updated = updateCoupon(code, updates, auth.email);
+    if (!updated) {
+      return NextResponse.json({ success: false, message: 'Coupon not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, coupon: updated });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = checkAdminAuth(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get('code');
+    if (!code) {
+      return NextResponse.json({ success: false, message: 'Coupon code is required' }, { status: 400 });
+    }
+
+    const deleted = deleteCoupon(code, auth.email);
+    if (!deleted) {
+      return NextResponse.json({ success: false, message: 'Coupon not found or already deleted' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Coupon deleted successfully' });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
