@@ -105,6 +105,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser);
     try {
       localStorage.setItem('mirli_user', JSON.stringify(newUser));
+      fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+        }),
+      }).catch((e) => console.warn('Customer registration sync notice:', e));
     } catch (e) {}
     return { success: true };
   };

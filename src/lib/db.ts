@@ -866,6 +866,7 @@ export function addCategory(categoryData: CategoryItem, adminEmail = 'admin@mirl
   db.categories.push(categoryData);
   logAdminActivity('Category Created', 'Category', `Created category "${categoryData.name}" (${categoryData.slug})`, adminEmail);
   saveDB(db);
+  emitRealtimeEvent('category:updated', categoryData);
   return categoryData;
 }
 
@@ -881,6 +882,7 @@ export function updateCategory(
   db.categories[idx] = { ...db.categories[idx], ...updates };
   logAdminActivity('Category Updated', 'Category', `Updated category "${db.categories[idx].name}"`, adminEmail);
   saveDB(db);
+  emitRealtimeEvent('category:updated', db.categories[idx]);
   return db.categories[idx];
 }
 
@@ -904,6 +906,7 @@ export function deleteCategory(
   db.categories = db.categories.filter((c) => c.slug !== slug);
   logAdminActivity('Category Deleted', 'Category', `Deleted category "${cat.name}" (${slug})`, adminEmail);
   saveDB(db);
+  emitRealtimeEvent('category:updated', { slug, deleted: true });
   return { success: true };
 }
 
@@ -926,6 +929,7 @@ export function addSubcategory(
       adminEmail
     );
     saveDB(db);
+    emitRealtimeEvent('category:updated', cat);
   }
   return cat;
 }
@@ -998,6 +1002,35 @@ export function updateCustomerStatus(
   );
   saveDB(db);
   return customer;
+}
+
+export function createCustomer(customerData: {
+  fullName: string;
+  email: string;
+  phone: string;
+  addresses?: any[];
+}): Customer {
+  const db = initDB();
+  const existing = db.customers.find((c) => c.email.toLowerCase() === customerData.email.toLowerCase());
+  if (existing) {
+    return existing;
+  }
+  const newCust: Customer = {
+    id: `cust-${Date.now()}`,
+    fullName: customerData.fullName,
+    email: customerData.email,
+    phone: customerData.phone,
+    createdAt: new Date().toISOString(),
+    status: 'active',
+    addresses: customerData.addresses || [],
+    totalOrders: 0,
+    totalSpending: 0,
+  };
+  db.customers.unshift(newCust);
+  logAdminActivity('Customer Registered', 'Customer', `New customer account registered: ${newCust.fullName} (${newCust.email})`, 'System');
+  saveDB(db);
+  emitRealtimeEvent('customer:created', newCust);
+  return newCust;
 }
 
 // ================= ORDERS =================
@@ -1488,6 +1521,8 @@ export function adjustStock(
   );
 
   saveDB(db);
+  emitRealtimeEvent('stock:updated', { productId, newStock: prod.stock, previousStock });
+  emitRealtimeEvent('product:updated', prod);
   return { product: prod, log };
 }
 
@@ -1619,6 +1654,7 @@ export function addReview(reviewData: Omit<Review, 'id' | 'date'>): Review {
   }
 
   saveDB(db);
+  emitRealtimeEvent('review:updated', newRev);
   return newRev;
 }
 
@@ -1651,6 +1687,7 @@ export function updateReviewStatus(
 
   logAdminActivity('Review Status Updated', 'Product', `Review ${reviewId} marked as ${status}`, adminEmail);
   saveDB(db);
+  emitRealtimeEvent('review:updated', rev);
   return rev;
 }
 
@@ -1668,6 +1705,7 @@ export function deleteReview(
   if (db.reviews[productId].length !== len) {
     logAdminActivity('Review Deleted', 'Product', `Deleted review ${reviewId} from product ${productId}`, adminEmail);
     saveDB(db);
+    emitRealtimeEvent('review:updated', { productId, reviewId, deleted: true });
     return true;
   }
   return false;

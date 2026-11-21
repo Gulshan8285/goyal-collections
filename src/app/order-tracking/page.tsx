@@ -56,6 +56,18 @@ function OrderTrackingContent() {
     }
   }, [initialOrderId]);
 
+  // Live Real-Time Synchronizer for Customer Order Tracking
+  useEffect(() => {
+    const handleOrderRealtime = (e: any) => {
+      const updated = e.detail?.payload || e.detail?.order || e.detail;
+      if (updated && (updated.id === order?.id || updated.orderNumber === order?.orderNumber)) {
+        setOrder(updated);
+      }
+    };
+    window.addEventListener('goyal:order-update', handleOrderRealtime);
+    return () => window.removeEventListener('goyal:order-update', handleOrderRealtime);
+  }, [order?.id, order?.orderNumber]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     fetchOrder(orderQuery);

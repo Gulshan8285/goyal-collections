@@ -50,7 +50,9 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          const message = `data: ${JSON.stringify(event)}\n\n`;
+          const payloadData = JSON.stringify(event.payload ?? event);
+          const fullData = JSON.stringify(event);
+          const message = `event: ${event.type}\ndata: ${payloadData}\n\n` + `data: ${fullData}\n\n`;
           controller.enqueue(encoder.encode(message));
         } catch (err) {
           console.error('Error sending SSE event:', err);

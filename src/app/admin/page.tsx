@@ -484,8 +484,9 @@ export default function AdminDashboardPage() {
       es.addEventListener('order:updated', (e: any) => {
         try {
           const data = JSON.parse(e.data);
-          if (data && data.order) {
-            setOrders((prev) => prev.map((o) => (o.id === data.order.id ? data.order : o)));
+          const order = data?.order || data;
+          if (order && order.id) {
+            setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
             fetch('/api/admin/shipping').then((r) => r.json()).then((d) => d.success && setShippingRecords(d.shipping));
             fetch('/api/admin/payments').then((r) => r.json()).then((d) => d.success && setPayments(d.payments));
           }
@@ -507,6 +508,18 @@ export default function AdminDashboardPage() {
       es.addEventListener('stock:updated', () => {
         fetch('/api/admin/products').then((r) => r.json()).then((d) => d.success && setProducts(d.products));
         fetch('/api/admin/inventory').then((r) => r.json()).then((d) => d.success && setInventoryLogs(d.logs));
+      });
+
+      es.addEventListener('customer:created', () => {
+        fetch('/api/admin/customers').then((r) => r.json()).then((d) => d.success && setCustomers(d.customers));
+      });
+
+      es.addEventListener('review:updated', () => {
+        fetch('/api/admin/reviews').then((r) => r.json()).then((d) => d.success && setReviews(d.reviews));
+      });
+
+      es.addEventListener('category:updated', () => {
+        fetch('/api/admin/categories').then((r) => r.json()).then((d) => d.success && setCategories(d.categories));
       });
     } catch (err) {
       console.warn('SSE initialization notice:', err);

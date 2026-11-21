@@ -146,7 +146,37 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
     return () => {
       isCancelled = true;
     };
-  }, [params.slug]); // Only re-run when the slug route parameter changes
+  }, [params.slug]);
+
+  // Live Real-Time Synchronizer for Product and Review updates
+  useEffect(() => {
+    const handleProductRealtime = (e: any) => {
+      const p = e.detail?.payload || e.detail;
+      if (p && (p.id === product?.id || p.slug === params.slug)) {
+        setProduct((prev) => (prev ? { ...prev, ...p } : p));
+      }
+    };
+
+    const handleReviewRealtime = () => {
+      if (product?.id) {
+        fetch(`/api/reviews?productId=${product.id}`)
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.success && Array.isArray(d.reviews)) {
+              setReviews(d.reviews);
+            }
+          });
+      }
+    };
+
+    window.addEventListener('goyal:product-update', handleProductRealtime);
+    window.addEventListener('goyal:review-update', handleReviewRealtime);
+
+    return () => {
+      window.removeEventListener('goyal:product-update', handleProductRealtime);
+      window.removeEventListener('goyal:review-update', handleReviewRealtime);
+    };
+  }, [product?.id, params.slug]); // Only re-run when the slug route parameter changes
 
   if (loading && !product) {
     return (

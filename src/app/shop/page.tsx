@@ -78,28 +78,37 @@ function ShopContent() {
   }, []);
 
   // Fetch all active products
-  useEffect(() => {
-    async function fetchProducts() {
-      setLoading(true);
-      try {
-        let url = `/api/products?sort=${selectedSort}`;
-        if (selectedCategory !== 'all') url += `&category=${selectedCategory}`;
-        if (searchParams.get('specialOffer') === 'true') url += `&specialOffer=true`;
+  const fetchProducts = React.useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    try {
+      let url = `/api/products?sort=${selectedSort}`;
+      if (selectedCategory !== 'all') url += `&category=${selectedCategory}`;
+      if (searchParams.get('specialOffer') === 'true') url += `&specialOffer=true`;
 
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.success) {
-          setAllProducts(data.products || []);
-        }
-      } catch (e) {
-        console.error('Failed to load shop products:', e);
-      } finally {
-        setLoading(false);
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setAllProducts(data.products || []);
       }
+    } catch (e) {
+      console.error('Failed to load shop products:', e);
+    } finally {
+      if (showLoading) setLoading(false);
     }
-
-    fetchProducts();
   }, [selectedCategory, selectedSort, searchParams]);
+
+  useEffect(() => {
+    fetchProducts(true);
+  }, [fetchProducts]);
+
+  // Real-time synchronization: update products without page reload
+  useEffect(() => {
+    const handleRealtimeUpdate = () => {
+      fetchProducts(false);
+    };
+    window.addEventListener('goyal:product-update', handleRealtimeUpdate);
+    return () => window.removeEventListener('goyal:product-update', handleRealtimeUpdate);
+  }, [fetchProducts]);
 
   // Handle department toggles (Men, Women, Kids, All)
   const toggleGender = (gender: string) => {
