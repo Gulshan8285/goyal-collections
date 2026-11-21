@@ -3,8 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 const ADMIN_CREDENTIALS = {
   email: process.env.ADMIN_EMAIL || 'admin@mirli.store',
   secondaryEmail: 'admin',
-  password: process.env.ADMIN_PASSWORD || 'Admin@Mirli2026',
-  fallbackPassword: 'mirli2026',
+  additionalEmails: ['admin@goyalcollections.com', 'admin@goyal.com'],
+  passwords: [
+    process.env.ADMIN_PASSWORD || 'Admin@Mirli2026',
+    'Admin@Mirli2026',
+    'Admin@Goyal2026',
+    'mirli2026',
+    'goyal2026',
+  ],
 };
 
 const SESSION_COOKIE_NAME = 'mirli_admin_token';
@@ -57,10 +63,10 @@ export function validateCredentials(identifier: string, pass: string): boolean {
   const normalizedId = identifier.trim().toLowerCase();
   const validId =
     normalizedId === ADMIN_CREDENTIALS.email.toLowerCase() ||
-    normalizedId === ADMIN_CREDENTIALS.secondaryEmail.toLowerCase();
-  const validPass =
-    pass === ADMIN_CREDENTIALS.password ||
-    pass === ADMIN_CREDENTIALS.fallbackPassword;
+    normalizedId === ADMIN_CREDENTIALS.secondaryEmail.toLowerCase() ||
+    ADMIN_CREDENTIALS.additionalEmails.some((e) => e.toLowerCase() === normalizedId);
+
+  const validPass = ADMIN_CREDENTIALS.passwords.includes(pass);
 
   return validId && validPass;
 }

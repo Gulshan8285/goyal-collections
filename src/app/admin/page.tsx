@@ -1273,7 +1273,7 @@ export default function AdminDashboardPage() {
 
           <div className="pt-4 border-t border-neutral-900 text-center">
             <span className="text-[10px] text-neutral-600 font-mono block">
-              Default Atelier Credentials: admin@mirli.store // Admin@Mirli2026
+              Default Atelier Credentials: admin@mirli.store // Admin@Mirli2026 or Admin@Goyal2026
             </span>
           </div>
         </div>
