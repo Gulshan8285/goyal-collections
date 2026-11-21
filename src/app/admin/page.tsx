@@ -1876,74 +1876,152 @@ export default function AdminDashboardPage() {
                 </select>
               </div>
 
-              {/* Product Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredProducts.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`rounded-3xl bg-neutral-900 border p-4 space-y-3.5 transition-all ${
-                      p.status === 'inactive' ? 'border-neutral-800 opacity-60' : 'border-neutral-800 hover:border-neutral-700'
-                    }`}
-                  >
-                    <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-950 relative">
-                      <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" />
-                      <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-black/80 text-white backdrop-blur-md">
-                        {p.subcategoryTitle}
-                      </div>
-                      <div className="absolute top-2.5 right-2.5">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase font-bold ${
-                          p.status === 'inactive' ? 'bg-red-950 text-red-400 border border-red-800' : 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                        }`}>
-                          {p.status || 'active'}
-                        </span>
-                      </div>
-                    </div>
+              {/* Products Table (Straight line table format like Orders) */}
+              <div className="p-6 rounded-3xl bg-neutral-900 border border-neutral-800 overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-neutral-800 text-neutral-400 uppercase text-[11px]">
+                      <th className="pb-3">Product Piece</th>
+                      <th className="pb-3">Category</th>
+                      <th className="pb-3">Price & MRP</th>
+                      <th className="pb-3">Stock Units</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3">Highlights</th>
+                      <th className="pb-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-800/60 font-mono">
+                    {filteredProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-neutral-500 font-sans">
+                          No products found matching the search criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredProducts.map((p) => (
+                        <tr key={p.id} className="hover:bg-neutral-800/40 transition-colors">
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-3 font-sans">
+                              <img
+                                src={p.images[0] || 'https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=1000'}
+                                alt={p.name}
+                                className="w-12 h-12 rounded-xl object-cover bg-neutral-950 shrink-0 border border-neutral-800"
+                              />
+                              <div className="min-w-0 max-w-xs">
+                                <span className="font-semibold text-white block truncate">{p.name}</span>
+                                <div className="text-[10px] text-neutral-400 font-mono flex items-center gap-2 mt-0.5">
+                                  <span>SKU: {p.sku || p.id}</span>
+                                  {p.colors && p.colors[0] && (
+                                    <span className="flex items-center gap-1">
+                                      <span
+                                        className="w-2 h-2 rounded-full border border-neutral-700"
+                                        style={{ backgroundColor: p.colors[0].hex }}
+                                      />
+                                      {p.colors[0].name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
 
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-semibold text-sm text-white truncate">{p.name}</h4>
-                      </div>
-                      <span className="text-[11px] font-mono text-neutral-400 block mt-0.5">
-                        SKU: {p.sku || p.id}
-                      </span>
-                      <div className="flex items-center justify-between mt-2 text-xs font-mono">
-                        <span className="text-white font-bold">₹{p.price.toLocaleString('en-IN')}</span>
-                        <span className="text-neutral-500 line-through">MRP: ₹{p.mrp.toLocaleString('en-IN')}</span>
-                        <span className="text-emerald-400">{p.discountPercent}% OFF</span>
-                      </div>
-                      <div className="mt-2 text-[11px] font-mono flex items-center justify-between text-neutral-400">
-                        <span>Stock: <strong className="text-white">{p.stock} units</strong></span>
-                        <span>Rating: <strong className="text-white">{p.rating}★ ({p.reviewCount})</strong></span>
-                      </div>
-                    </div>
+                          <td className="py-3.5">
+                            <span className="px-2 py-0.5 rounded-lg bg-neutral-950 border border-neutral-800 text-neutral-300 text-[10px] font-bold">
+                              {p.categoryTitle || p.category}
+                            </span>
+                            <span className="text-[10px] text-neutral-400 block mt-0.5">
+                              {p.subcategoryTitle || p.subcategory}
+                            </span>
+                          </td>
 
-                    <div className="pt-3 border-t border-neutral-800/80 flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => handleToggleProductStatus(p)}
-                        className="text-[11px] font-mono px-2.5 py-1 rounded-full border border-neutral-800 hover:border-neutral-600 text-neutral-300"
-                      >
-                        {p.status === 'inactive' ? 'Activate' : 'Deactivate'}
-                      </button>
+                          <td className="py-3.5">
+                            <div className="text-white font-bold text-sm">₹{p.price.toLocaleString('en-IN')}</div>
+                            <div className="text-[10px] text-neutral-500 line-through">
+                              MRP: ₹{p.mrp.toLocaleString('en-IN')}
+                              <span className="ml-1 text-emerald-400 font-normal no-underline">
+                                ({p.discountPercent}% OFF)
+                              </span>
+                            </div>
+                          </td>
 
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => openEditProductModal(p)}
-                          className="p-2 rounded-full bg-neutral-800 hover:bg-white hover:text-black text-neutral-300 transition-colors"
-                          title="Edit Product"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(p.id, p.name)}
-                          className="p-2 rounded-full bg-neutral-800 hover:bg-red-600 text-neutral-400 hover:text-white transition-colors"
-                          title="Delete Product"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  p.stock <= 5
+                                    ? 'bg-red-400 animate-pulse'
+                                    : p.stock <= 15
+                                    ? 'bg-amber-400'
+                                    : 'bg-emerald-400'
+                                }`}
+                              />
+                              <span className="text-white font-bold">{p.stock} units</span>
+                            </div>
+                            <span className="text-[10px] text-neutral-500 block">
+                              {p.stock <= 5 ? 'Critical Low' : p.stock <= 15 ? 'Low Stock' : 'In Stock'}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5">
+                            <button
+                              onClick={() => handleToggleProductStatus(p)}
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold transition-all ${
+                                p.status === 'inactive'
+                                  ? 'bg-red-950/60 text-red-400 border border-red-900 hover:bg-red-900/60'
+                                  : 'bg-emerald-950/60 text-emerald-400 border border-emerald-900 hover:bg-emerald-900/60'
+                              }`}
+                              title="Click to toggle status"
+                            >
+                              {p.status || 'active'}
+                            </button>
+                          </td>
+
+                          <td className="py-3.5">
+                            <div className="flex flex-wrap gap-1 max-w-[140px]">
+                              {p.isTrending && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-950 text-amber-400 border border-amber-900">
+                                  Trending
+                                </span>
+                              )}
+                              {p.isBestSeller && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-purple-950 text-purple-400 border border-purple-900">
+                                  Best Seller
+                                </span>
+                              )}
+                              {p.isNewArrival && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] bg-sky-950 text-sky-400 border border-sky-900">
+                                  New
+                                </span>
+                              )}
+                              {!p.isTrending && !p.isBestSeller && !p.isNewArrival && (
+                                <span className="text-[10px] text-neutral-600">Standard</span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => openEditProductModal(p)}
+                                className="p-1.5 rounded-lg bg-neutral-800 hover:bg-white hover:text-black text-neutral-300 transition-colors"
+                                title="Edit Product"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProduct(p.id, p.name)}
+                                className="p-1.5 rounded-lg bg-neutral-800 hover:bg-red-600 text-neutral-400 hover:text-white transition-colors"
+                                title="Delete Product"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -2387,57 +2465,92 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                {reviews.map((rev) => (
-                  <div key={rev.id} className="p-5 rounded-3xl bg-neutral-900 border border-neutral-800 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-neutral-800">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white text-sm">{rev.customerName}</span>
-                          <span className="text-amber-400 text-xs">{'★'.repeat(rev.rating)}</span>
-                          <span className="text-[10px] font-mono text-emerald-400">Verified Purchase</span>
-                        </div>
-                        <span className="text-xs text-neutral-400 font-mono block mt-0.5">
-                          Product: <strong>{rev.productName || rev.productId}</strong> • Date: {rev.date}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase font-bold ${
-                          rev.status === 'approved' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'
-                        }`}>
-                          {rev.status || 'approved'}
-                        </span>
-                        {rev.status !== 'approved' && (
-                          <button
-                            onClick={() => handleReviewStatus(rev.productId, rev.id, 'approved')}
-                            className="px-3 py-1 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white text-xs"
-                          >
-                            Approve
-                          </button>
-                        )}
-                        {rev.status !== 'rejected' && (
-                          <button
-                            onClick={() => handleReviewStatus(rev.productId, rev.id, 'rejected')}
-                            className="px-3 py-1 rounded-full bg-neutral-800 hover:bg-amber-700 text-neutral-300 hover:text-white text-xs"
-                          >
-                            Reject
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteReview(rev.productId, rev.id)}
-                          className="p-1.5 rounded-full bg-neutral-800 hover:bg-red-700 text-neutral-400 hover:text-white text-xs"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-neutral-300 italic leading-relaxed">
-                      &ldquo;{rev.comment}&rdquo;
-                    </p>
-                  </div>
-                ))}
+              <div className="p-6 rounded-3xl bg-neutral-900 border border-neutral-800 overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-neutral-800 text-neutral-400 uppercase text-[11px]">
+                      <th className="pb-3">Patron</th>
+                      <th className="pb-3">Product Piece</th>
+                      <th className="pb-3">Rating</th>
+                      <th className="pb-3">Review Feedback</th>
+                      <th className="pb-3">Date</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-800/60 font-mono">
+                    {reviews.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-neutral-500 font-sans">
+                          No reviews submitted yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      reviews.map((rev) => (
+                        <tr key={rev.id} className="hover:bg-neutral-800/40 transition-colors">
+                          <td className="py-3.5 font-sans">
+                            <div className="font-semibold text-white">{rev.customerName}</div>
+                            <span className="text-[10px] text-emerald-400 font-mono">Verified Buyer</span>
+                          </td>
+                          <td className="py-3.5 font-sans">
+                            <span className="text-white font-medium max-w-xs block truncate">
+                              {rev.productName || rev.productId}
+                            </span>
+                            <span className="text-[10px] text-neutral-500 font-mono">ID: {rev.productId}</span>
+                          </td>
+                          <td className="py-3.5 text-amber-400 text-sm whitespace-nowrap">
+                            {'★'.repeat(rev.rating)}
+                          </td>
+                          <td className="py-3.5 font-sans text-neutral-300 max-w-md">
+                            <div className="font-bold text-white text-xs">{rev.title}</div>
+                            <p className="text-[11px] text-neutral-400 line-clamp-2 mt-0.5">{rev.comment}</p>
+                          </td>
+                          <td className="py-3.5 text-neutral-400 text-[11px] whitespace-nowrap">
+                            {rev.date}
+                          </td>
+                          <td className="py-3.5">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase font-bold ${
+                                rev.status === 'approved'
+                                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                                  : 'bg-amber-950 text-amber-400 border border-amber-800'
+                              }`}
+                            >
+                              {rev.status || 'approved'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {rev.status !== 'approved' && (
+                                <button
+                                  onClick={() => handleReviewStatus(rev.productId, rev.id, 'approved')}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-[10px] font-bold"
+                                >
+                                  Approve
+                                </button>
+                              )}
+                              {rev.status !== 'rejected' && (
+                                <button
+                                  onClick={() => handleReviewStatus(rev.productId, rev.id, 'rejected')}
+                                  className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-[10px]"
+                                >
+                                  Reject
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteReview(rev.productId, rev.id)}
+                                className="p-1 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 text-[10px]"
+                                title="Delete Review"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -2461,31 +2574,65 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {coupons.map((c) => (
-                  <div key={c.code} className="p-5 rounded-3xl bg-neutral-900 border border-neutral-800 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-                      <span className="font-mono font-black text-lg text-white tracking-widest">{c.code}</span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">
-                        {c.discountPercent}% OFF
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-300">{c.description}</p>
-                    <div className="text-[11px] font-mono text-neutral-400 space-y-1">
-                      <div>Min Order: <strong className="text-white">₹{c.minOrder.toLocaleString('en-IN')}</strong></div>
-                      <div>Expires: <strong className="text-white">{c.expiresAt}</strong></div>
-                    </div>
-                    <div className="pt-2 border-t border-neutral-800 flex justify-end">
-                      <button
-                        onClick={() => handleDeleteCoupon(c.code)}
-                        className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="p-6 rounded-3xl bg-neutral-900 border border-neutral-800 overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-neutral-800 text-neutral-400 uppercase text-[11px]">
+                      <th className="pb-3">Promo Code</th>
+                      <th className="pb-3">Discount</th>
+                      <th className="pb-3">Min Order</th>
+                      <th className="pb-3">Offer Description</th>
+                      <th className="pb-3">Expires On</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-800/60 font-mono">
+                    {coupons.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-neutral-500 font-sans">
+                          No active promotional coupons.
+                        </td>
+                      </tr>
+                    ) : (
+                      coupons.map((c) => (
+                        <tr key={c.code} className="hover:bg-neutral-800/40 transition-colors">
+                          <td className="py-3.5 font-bold text-white font-mono text-sm tracking-widest">
+                            {c.code}
+                          </td>
+                          <td className="py-3.5">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">
+                              {c.discountPercent}% OFF
+                            </span>
+                          </td>
+                          <td className="py-3.5 text-white font-bold">
+                            ₹{c.minOrder.toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-3.5 text-neutral-300 font-sans max-w-xs truncate">
+                            {c.description}
+                          </td>
+                          <td className="py-3.5 text-neutral-400 text-[11px]">
+                            {c.expiresAt}
+                          </td>
+                          <td className="py-3.5">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-900 font-bold">
+                              ACTIVE
+                            </span>
+                          </td>
+                          <td className="py-3.5 text-right">
+                            <button
+                              onClick={() => handleDeleteCoupon(c.code)}
+                              className="p-1.5 rounded-lg bg-neutral-800 hover:bg-red-600 text-neutral-400 hover:text-white transition-colors"
+                              title="Delete Coupon"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
