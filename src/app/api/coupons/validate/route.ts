@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
     const result = validateCoupon(code, Number(subtotal || 0));
     return NextResponse.json({
       success: result.valid,
+      valid: result.valid,
       discount: result.discount,
       message: result.message,
       coupon: result.coupon,

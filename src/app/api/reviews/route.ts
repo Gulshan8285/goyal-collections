@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    if (!body.productId || !body.customerName || !body.rating || !body.comment) {
+    const customerName = body.customerName || body.author;
+    if (!body.productId || !customerName || !body.rating || !body.comment) {
       return NextResponse.json(
         { success: false, message: 'Product ID, customer name, rating, and comment are required' },
         { status: 400 }
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const created = addReview({
       productId: body.productId,
-      customerName: body.customerName,
+      customerName: customerName,
       rating: Number(body.rating),
       title: body.title || 'Verified Review',
       comment: body.comment,

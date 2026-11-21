@@ -344,14 +344,32 @@ const INITIAL_ORDERS: Order[] = [
 ];
 
 let memoryCache: DatabaseSchema | null = null;
+let lastDiskMtime = 0;
 
 export function initDB(): DatabaseSchema {
+  const writablePath = getWritableDBPath();
+
+  if (fs.existsSync(writablePath)) {
+    try {
+      const stat = fs.statSync(writablePath);
+      if (memoryCache && stat.mtimeMs <= lastDiskMtime) {
+        return memoryCache;
+      }
+      const raw = fs.readFileSync(writablePath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      memoryCache = parsed;
+      lastDiskMtime = stat.mtimeMs;
+      return parsed;
+    } catch (e) {
+      if (memoryCache) return memoryCache;
+    }
+  }
+
   if (memoryCache) {
     return memoryCache;
   }
 
   let dbData: DatabaseSchema | null = null;
-  const writablePath = getWritableDBPath();
   const bundledPath = path.join(process.cwd(), 'data', 'database.json');
 
   if (fs.existsSync(writablePath)) {
@@ -587,6 +605,7 @@ export function saveDB(data: DatabaseSchema): void {
     const tempFile = `${writablePath}.tmp.${Date.now()}`;
     fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
     fs.renameSync(tempFile, writablePath);
+    lastDiskMtime = Date.now();
   } catch (err: any) {
     console.warn('Filesystem save notice (active memory state):', err.message);
   }

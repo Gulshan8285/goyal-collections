@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProducts, createProduct } from '@/lib/db';
+import { getProducts, createProduct, updateProduct, deleteProduct } from '@/lib/db';
 import { checkAdminAuth } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {
@@ -88,6 +88,56 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json({ success: true, product: created }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const auth = checkAdminAuth(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, ...updates } = body;
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'Product ID is required' }, { status: 400 });
+    }
+
+    if (updates.price && updates.mrp) {
+      updates.discountPercent = Math.round(((Number(updates.mrp) - Number(updates.price)) / Number(updates.mrp)) * 100);
+    }
+
+    const updated = updateProduct(id, updates, auth.email);
+    if (!updated) {
+      return NextResponse.json({ success: false, message: 'Product not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, product: updated });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const auth = checkAdminAuth(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'Product ID is required' }, { status: 400 });
+    }
+
+    const deleted = deleteProduct(id, auth.email);
+    if (!deleted) {
+      return NextResponse.json({ success: false, message: 'Product not found or already deleted' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, message: 'Product deleted successfully' });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
