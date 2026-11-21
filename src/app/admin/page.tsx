@@ -1178,6 +1178,46 @@ export default function AdminDashboardPage() {
     });
   }, [customers, customerSearch]);
 
+  // Dynamic stats calculation for Dashboard Date Range selector
+  const filteredStats = useMemo(() => {
+    if (!stats) return null;
+    if (dateFilter === 'all') return stats;
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfDay - 86400000;
+    const startOf7Days = now.getTime() - 7 * 86400000;
+    const startOf30Days = now.getTime() - 30 * 86400000;
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).getTime();
+
+    const matchingOrders = orders.filter((o) => {
+      const t = new Date(o.createdAt).getTime();
+      if (dateFilter === 'today') return t >= startOfDay;
+      if (dateFilter === 'yesterday') return t >= startOfYesterday && t < startOfDay;
+      if (dateFilter === '7d') return t >= startOf7Days;
+      if (dateFilter === '30d') return t >= startOf30Days;
+      if (dateFilter === 'this_month') return t >= startOfMonth;
+      if (dateFilter === 'last_month') return t >= startOfLastMonth && t <= endOfLastMonth;
+      return true;
+    });
+
+    const rev = matchingOrders
+      .filter((o) => o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Refunded')
+      .reduce((sum, o) => sum + o.totalAmount, 0);
+
+    return {
+      ...stats,
+      totalRevenue: rev,
+      totalOrders: matchingOrders.length,
+      pendingOrders: matchingOrders.filter((o) => o.orderStatus === 'Order Placed' || o.orderStatus === 'Confirmed').length,
+      processingOrders: matchingOrders.filter((o) => o.orderStatus === 'Processing' || o.orderStatus === 'Packed').length,
+      deliveredOrders: matchingOrders.filter((o) => o.orderStatus === 'Delivered').length,
+      cancelledOrders: matchingOrders.filter((o) => o.orderStatus === 'Cancelled' || o.orderStatus === 'Refunded').length,
+    };
+  }, [stats, orders, dateFilter]);
+
   // If loading session check
   if (loading && isAuthenticated === null) {
     return (
@@ -1285,45 +1325,6 @@ export default function AdminDashboardPage() {
   // 2. MAIN ADMIN DASHBOARD WITH LEFT SIDEBAR
   // =============================================================
   
-  // Dynamic stats calculation for Dashboard Date Range selector
-  const filteredStats = useMemo(() => {
-    if (!stats) return null;
-    if (dateFilter === 'all') return stats;
-
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const startOfYesterday = startOfDay - 86400000;
-    const startOf7Days = now.getTime() - 7 * 86400000;
-    const startOf30Days = now.getTime() - 30 * 86400000;
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
-    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).getTime();
-
-    const matchingOrders = orders.filter((o) => {
-      const t = new Date(o.createdAt).getTime();
-      if (dateFilter === 'today') return t >= startOfDay;
-      if (dateFilter === 'yesterday') return t >= startOfYesterday && t < startOfDay;
-      if (dateFilter === '7d') return t >= startOf7Days;
-      if (dateFilter === '30d') return t >= startOf30Days;
-      if (dateFilter === 'this_month') return t >= startOfMonth;
-      if (dateFilter === 'last_month') return t >= startOfLastMonth && t <= endOfLastMonth;
-      return true;
-    });
-
-    const rev = matchingOrders
-      .filter((o) => o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Refunded')
-      .reduce((sum, o) => sum + o.totalAmount, 0);
-
-    return {
-      ...stats,
-      totalRevenue: rev,
-      totalOrders: matchingOrders.length,
-      pendingOrders: matchingOrders.filter((o) => o.orderStatus === 'Order Placed' || o.orderStatus === 'Confirmed').length,
-      processingOrders: matchingOrders.filter((o) => o.orderStatus === 'Processing' || o.orderStatus === 'Packed').length,
-      deliveredOrders: matchingOrders.filter((o) => o.orderStatus === 'Delivered').length,
-      cancelledOrders: matchingOrders.filter((o) => o.orderStatus === 'Cancelled' || o.orderStatus === 'Refunded').length,
-    };
-  }, [stats, orders, dateFilter]);
 
   const navMenuItems = [
     { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard },
