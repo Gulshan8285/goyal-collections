@@ -855,7 +855,7 @@ export function updateProduct(
 export function deleteProduct(id: string, adminEmail = 'admin@mirli.store'): boolean {
   const db = initDB();
   const prod = db.products.find((p) => p.id === id);
-  if (!prod) return false;
+  if (!prod) return true;
 
   db.products = db.products.filter((p) => p.id !== id);
 

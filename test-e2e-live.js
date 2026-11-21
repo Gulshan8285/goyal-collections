@@ -194,57 +194,53 @@ async function runTests() {
   }
 
   // 8. Admin Updates Order Status (Order Placed -> Shipped)
-  if (testOrderId) {
-    try {
-      const start = Date.now();
-      const res = await fetch(`${BASE_URL}/api/admin/orders/${testOrderId}`, {
-        method: 'PATCH',
-        headers: adminHeaders,
-        body: JSON.stringify({
-          status: 'Shipped',
-          notes: 'Dispatched via BlueDart Express Air AWB #BLU-88291039',
-          courierName: 'BlueDart',
-          trackingNumber: 'BLU-88291039',
-        }),
-      });
-      const data = await res.json();
-      const duration = Date.now() - start;
-      record('TC-08', 'Admin Status Transition (Shipped)', data.success === true && data.order?.orderStatus === 'Shipped', duration, `Status updated to Shipped, Courier: ${data.order?.courierName}`);
-    } catch (err) {
-      record('TC-08', 'Admin Status Transition (Shipped)', false, 0, err.message);
-    }
+  const targetOrderId = testOrderId || 'mirli-ord-10021';
+  try {
+    const start = Date.now();
+    const res = await fetch(`${BASE_URL}/api/admin/orders/${targetOrderId}`, {
+      method: 'PATCH',
+      headers: adminHeaders,
+      body: JSON.stringify({
+        status: 'Shipped',
+        notes: 'Dispatched via BlueDart Express Air AWB #BLU-88291039',
+        courierName: 'BlueDart',
+        trackingNumber: 'BLU-88291039',
+      }),
+    });
+    const data = await res.json();
+    const duration = Date.now() - start;
+    record('TC-08', 'Admin Status Transition (Shipped)', data.success === true && data.order?.orderStatus === 'Shipped', duration, `Status updated to Shipped, Courier: ${data.order?.courierName}`);
+  } catch (err) {
+    record('TC-08', 'Admin Status Transition (Shipped)', false, 0, err.message);
   }
 
   // 9. Verify Customer Order Tracking reflects status change
-  if (testOrderId) {
-    try {
-      const start = Date.now();
-      const res = await fetch(`${BASE_URL}/api/orders/${testOrderId}`);
-      const data = await res.json();
-      const duration = Date.now() - start;
-      const isShipped = data.success === true && (data.order?.orderStatus === 'Shipped' || data.order?.id === testOrderId);
-      record('TC-09', 'Customer Live Tracking Timeline Verification', isShipped === true, duration, `Tracking timeline reflects status: ${data.order?.orderStatus || 'Recorded'}`);
-    } catch (err) {
-      record('TC-09', 'Customer Live Tracking Timeline Verification', false, 0, err.message);
-    }
+  try {
+    const start = Date.now();
+    const res = await fetch(`${BASE_URL}/api/orders/${targetOrderId}`);
+    const data = await res.json();
+    const duration = Date.now() - start;
+    const isShipped = data.success === true && data.order?.orderStatus === 'Shipped';
+    record('TC-09', 'Customer Live Tracking Timeline Verification', isShipped === true, duration, `Tracking timeline reflects status: ${data.order?.orderStatus}`);
+  } catch (err) {
+    record('TC-09', 'Customer Live Tracking Timeline Verification', false, 0, err.message);
   }
 
   // 10. Inventory Adjustment & Stock Log
-  const inventoryProdId = testProductId || 'mirli-fw-001';
   try {
     const start = Date.now();
     const res = await fetch(`${BASE_URL}/api/admin/inventory`, {
       method: 'POST',
       headers: adminHeaders,
       body: JSON.stringify({
-        productId: inventoryProdId,
+        productId: 'mirli-fw-001',
         newStock: 35,
         reason: 'Atelier master artisan restock intake',
       }),
     });
     const data = await res.json();
     const duration = Date.now() - start;
-    record('TC-10', 'Admin Inventory Restock & Audit Log', data.success === true && (data.product?.stock === 35 || !!data.log), duration, `Stock updated, Log generated: ${data.log?.id}`);
+    record('TC-10', 'Admin Inventory Restock & Audit Log', data.success === true && (data.product?.stock === 35 || !!data.log), duration, `Stock updated to 35, Log generated: ${data.log?.id}`);
   } catch (err) {
     record('TC-10', 'Admin Inventory Restock & Audit Log', false, 0, err.message);
   }
