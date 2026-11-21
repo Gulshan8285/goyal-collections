@@ -1,6 +1,24 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import PaymentsView from '@/components/admin/PaymentsView';
+import ShippingView from '@/components/admin/ShippingView';
+import NotificationsView from '@/components/admin/NotificationsView';
+import UsersView from '@/components/admin/UsersView';
+import ActivityLogsView from '@/components/admin/ActivityLogsView';
+import PrintInvoiceModal from '@/components/admin/PrintInvoiceModal';
+import {
+  PaymentTransaction,
+  ShippingRecord,
+  AdminNotification,
+  AdminUser,
+} from '@/lib/types';
+import {
+  Bell,
+  Printer,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -73,15 +91,55 @@ type AdminTab =
   | 'categories'
   | 'orders'
   | 'customers'
-  | 'inventory'
   | 'reviews'
   | 'coupons'
-  | 'banners'
+  | 'payments'
+  | 'shipping'
   | 'analytics'
-  | 'export_import'
-  | 'settings';
+  | 'notifications'
+  | 'banners'
+  | 'content'
+  | 'users'
+  | 'settings'
+  | 'logs'
+  | 'inventory'
+  | 'export_import';
 
 export default function AdminDashboardPage() {
+  // Luxury Audio Chime for Real-Time Order Alerts (Web Audio API)
+  const playLuxuryChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.1);
+      osc2.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.35);
+
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.85);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start();
+      osc2.start(ctx.currentTime + 0.08);
+      osc1.stop(ctx.currentTime + 0.85);
+      osc2.stop(ctx.currentTime + 0.85);
+    } catch (e) {
+      console.warn('Audio chime notice:', e);
+    }
+  };
+
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [loginEmail, setLoginEmail] = useState('admin@mirli.store');
@@ -105,6 +163,18 @@ export default function AdminDashboardPage() {
   const [banners, setBanners] = useState<BannerSlide[]>([]);
   const [activityLogs, setActivityLogs] = useState<AdminActivityLog[]>([]);
   const [settings, setSettings] = useState<any>(null);
+
+  // Real-Time & Advanced Admin States
+  const [payments, setPayments] = useState<PaymentTransaction[]>([]);
+  const [shippingRecords, setShippingRecords] = useState<ShippingRecord[]>([]);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [realtimeConnected, setRealtimeConnected] = useState<boolean>(false);
+  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
+  const [invoiceModalOrder, setInvoiceModalOrder] = useState<Order | null>(null);
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | '7d' | '30d' | 'this_month' | 'last_month'>('all');
 
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -291,6 +361,10 @@ export default function AdminDashboardPage() {
         banRes,
         logRes,
         setRes,
+        paymentsRes,
+        shippingRes,
+        notifRes,
+        usersRes,
       ] = await Promise.all([
         fetch('/api/admin/stats').then((r) => r.json()),
         fetch('/api/admin/products').then((r) => r.json()),
@@ -303,6 +377,10 @@ export default function AdminDashboardPage() {
         fetch('/api/admin/banners').then((r) => r.json()),
         fetch('/api/admin/logs').then((r) => r.json()),
         fetch('/api/admin/settings').then((r) => r.json()),
+        fetch('/api/admin/payments').then((r) => r.json()).catch(() => ({ success: false })),
+        fetch('/api/admin/shipping').then((r) => r.json()).catch(() => ({ success: false })),
+        fetch('/api/admin/notifications').then((r) => r.json()).catch(() => ({ success: false })),
+        fetch('/api/admin/users').then((r) => r.json()).catch(() => ({ success: false })),
       ]);
 
       if (statsRes.success) setStats(statsRes.stats);
@@ -316,12 +394,128 @@ export default function AdminDashboardPage() {
       if (banRes.success) setBanners(banRes.slides);
       if (logRes.success) setActivityLogs(logRes.logs);
       if (setRes.success) setSettings(setRes.settings);
+      if (paymentsRes?.success) setPayments(paymentsRes.payments);
+      if (shippingRes?.success) setShippingRecords(shippingRes.shipping);
+      if (notifRes?.success) {
+        setNotifications(notifRes.notifications);
+        setUnreadNotificationsCount(notifRes.unreadCount ?? notifRes.notifications.filter((n) => !n.read).length);
+      }
+      if (usersRes?.success) setAdminUsers(usersRes.users);
     } catch (err) {
       console.error('Failed loading admin records:', err);
     } finally {
       setLoading(false);
     }
   };
+
+
+  // URL Synchronization on mount and popstate
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const p = window.location.pathname.replace(/^\/admin\/?/, '');
+      const validTabs = [
+        'dashboard', 'products', 'categories', 'orders', 'customers',
+        'reviews', 'coupons', 'payments', 'shipping', 'analytics',
+        'notifications', 'banners', 'content', 'users', 'settings', 'logs',
+        'inventory', 'export_import'
+      ];
+      if (p) {
+        const matched = validTabs.find((t) => p.startsWith(t));
+        if (matched) {
+          setActiveTab((matched === 'content' ? 'banners' : matched) as AdminTab);
+        }
+      }
+
+      const onPop = () => {
+        const popP = window.location.pathname.replace(/^\/admin\/?/, '');
+        const matched = validTabs.find((t) => popP.startsWith(t));
+        if (matched) {
+          setActiveTab((matched === 'content' ? 'banners' : matched) as AdminTab);
+        } else {
+          setActiveTab('dashboard');
+        }
+      };
+      window.addEventListener('popstate', onPop);
+      return () => window.removeEventListener('popstate', onPop);
+    }
+  }, []);
+
+  // Real-Time SSE Listener for Admin Events
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource('/api/events?channel=admin');
+
+      es.onopen = () => {
+        setRealtimeConnected(true);
+      };
+
+      es.onerror = () => {
+        setRealtimeConnected(false);
+      };
+
+      es.addEventListener('order:created', (e: any) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data && data.order) {
+            if (soundEnabled) playLuxuryChime();
+            setNewOrderIds((prev) => new Set(prev).add(data.order.id));
+            setOrders((prev) => [data.order, ...prev.filter((o) => o.id !== data.order.id)]);
+            setToastMessage(`🚨 NEW ORDER #${data.order.orderNumber} - ₹${data.order.totalAmount.toLocaleString('en-IN')}`);
+            setTimeout(() => setToastMessage(null), 8000);
+            
+            fetch('/api/admin/stats').then((r) => r.json()).then((d) => d.success && setStats(d.stats));
+            fetch('/api/admin/payments').then((r) => r.json()).then((d) => d.success && setPayments(d.payments));
+            fetch('/api/admin/shipping').then((r) => r.json()).then((d) => d.success && setShippingRecords(d.shipping));
+            fetch('/api/admin/notifications').then((r) => r.json()).then((d) => {
+              if (d.success) {
+                setNotifications(d.notifications);
+                setUnreadNotificationsCount(d.unreadCount);
+              }
+            });
+          }
+        } catch (err) {
+          console.error('SSE order:created parse error:', err);
+        }
+      });
+
+      es.addEventListener('order:updated', (e: any) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data && data.order) {
+            setOrders((prev) => prev.map((o) => (o.id === data.order.id ? data.order : o)));
+            fetch('/api/admin/shipping').then((r) => r.json()).then((d) => d.success && setShippingRecords(d.shipping));
+            fetch('/api/admin/payments').then((r) => r.json()).then((d) => d.success && setPayments(d.payments));
+          }
+        } catch (err) {}
+      });
+
+      es.addEventListener('product:updated', () => {
+        fetch('/api/admin/products').then((r) => r.json()).then((d) => d.success && setProducts(d.products));
+      });
+
+      es.addEventListener('product:created', () => {
+        fetch('/api/admin/products').then((r) => r.json()).then((d) => d.success && setProducts(d.products));
+      });
+
+      es.addEventListener('product:deleted', () => {
+        fetch('/api/admin/products').then((r) => r.json()).then((d) => d.success && setProducts(d.products));
+      });
+
+      es.addEventListener('stock:updated', () => {
+        fetch('/api/admin/products').then((r) => r.json()).then((d) => d.success && setProducts(d.products));
+        fetch('/api/admin/inventory').then((r) => r.json()).then((d) => d.success && setInventoryLogs(d.logs));
+      });
+    } catch (err) {
+      console.warn('SSE initialization notice:', err);
+    }
+
+    return () => {
+      if (es) es.close();
+    };
+  }, [isAuthenticated, soundEnabled]);
 
   // -------------------------------------------------------------
   // 3. Image Upload Handler
@@ -1090,19 +1284,75 @@ export default function AdminDashboardPage() {
   // =============================================================
   // 2. MAIN ADMIN DASHBOARD WITH LEFT SIDEBAR
   // =============================================================
+  
+  // Dynamic stats calculation for Dashboard Date Range selector
+  const filteredStats = useMemo(() => {
+    if (!stats) return null;
+    if (dateFilter === 'all') return stats;
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfDay - 86400000;
+    const startOf7Days = now.getTime() - 7 * 86400000;
+    const startOf30Days = now.getTime() - 30 * 86400000;
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).getTime();
+
+    const matchingOrders = orders.filter((o) => {
+      const t = new Date(o.createdAt).getTime();
+      if (dateFilter === 'today') return t >= startOfDay;
+      if (dateFilter === 'yesterday') return t >= startOfYesterday && t < startOfDay;
+      if (dateFilter === '7d') return t >= startOf7Days;
+      if (dateFilter === '30d') return t >= startOf30Days;
+      if (dateFilter === 'this_month') return t >= startOfMonth;
+      if (dateFilter === 'last_month') return t >= startOfLastMonth && t <= endOfLastMonth;
+      return true;
+    });
+
+    const rev = matchingOrders
+      .filter((o) => o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Refunded')
+      .reduce((sum, o) => sum + o.totalAmount, 0);
+
+    return {
+      ...stats,
+      totalRevenue: rev,
+      totalOrders: matchingOrders.length,
+      pendingOrders: matchingOrders.filter((o) => o.orderStatus === 'Order Placed' || o.orderStatus === 'Confirmed').length,
+      processingOrders: matchingOrders.filter((o) => o.orderStatus === 'Processing' || o.orderStatus === 'Packed').length,
+      deliveredOrders: matchingOrders.filter((o) => o.orderStatus === 'Delivered').length,
+      cancelledOrders: matchingOrders.filter((o) => o.orderStatus === 'Cancelled' || o.orderStatus === 'Refunded').length,
+    };
+  }, [stats, orders, dateFilter]);
+
   const navMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'products', label: `Products (${products.length})`, icon: Package },
-    { id: 'categories', label: `Categories (${categories.length})`, icon: Layers },
-    { id: 'orders', label: `Orders (${orders.length})`, icon: ShoppingBag },
-    { id: 'customers', label: `Customers (${customers.length})`, icon: Users },
-    { id: 'inventory', label: 'Inventory', icon: Boxes },
-    { id: 'reviews', label: `Reviews (${reviews.length})`, icon: Star },
-    { id: 'coupons', label: `Coupons (${coupons.length})`, icon: Tag },
-    { id: 'banners', label: `Banners & Home (${banners.length})`, icon: ImageIcon },
-    { id: 'analytics', label: 'Reports & Analytics', icon: TrendingUp },
-    { id: 'export_import', label: 'Export / Import', icon: ArrowDownUp },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard },
+    { id: 'products', label: `2. Products (${products.length})`, icon: Package },
+    { id: 'categories', label: `3. Categories (${categories.length})`, icon: Layers },
+    {
+      id: 'orders',
+      label: `4. Orders (${orders.length})`,
+      icon: ShoppingBag,
+      badge: newOrderIds.size > 0 ? `${newOrderIds.size} NEW` : null,
+      badgeColor: 'bg-emerald-400 text-black animate-pulse',
+    },
+    { id: 'customers', label: `5. Customers (${customers.length})`, icon: Users },
+    { id: 'reviews', label: `6. Reviews & Ratings (${reviews.length})`, icon: Star },
+    { id: 'coupons', label: `7. Coupons & Discounts (${coupons.length})`, icon: Tag },
+    { id: 'payments', label: `8. Payments & Trans (${payments.length})`, icon: CreditCard },
+    { id: 'shipping', label: `9. Shipping & Courier (${shippingRecords.length})`, icon: Truck },
+    { id: 'analytics', label: '10. Analytics & Reports', icon: TrendingUp },
+    {
+      id: 'notifications',
+      label: `11. Notifications (${unreadNotificationsCount})`,
+      icon: Bell,
+      badge: unreadNotificationsCount > 0 ? `${unreadNotificationsCount}` : null,
+      badgeColor: 'bg-amber-400 text-black',
+    },
+    { id: 'banners', label: `12. Website Content`, icon: ImageIcon },
+    { id: 'users', label: `13. Admin Users & Roles (${adminUsers.length})`, icon: ShieldCheck },
+    { id: 'settings', label: '14. Settings', icon: Settings },
+    { id: 'logs', label: `15. Activity Logs (${activityLogs.length})`, icon: History },
   ];
 
   return (
@@ -1168,7 +1418,12 @@ export default function AdminDashboardPage() {
                 <button
                   key={item.id}
                   onClick={() => {
-                    setActiveTab(item.id as AdminTab);
+                    const t = item.id as AdminTab;
+                    setActiveTab(t);
+                    if (typeof window !== 'undefined') {
+                      const slug = t === 'banners' ? 'content' : t;
+                      window.history.pushState(null, '', `/admin/${slug}`);
+                    }
                     setIsMobileSidebarOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-left ${
@@ -1177,8 +1432,15 @@ export default function AdminDashboardPage() {
                       : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <div className="flex items-center gap-3 truncate">
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+                  {(item as any).badge && (
+                    <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold shrink-0 ${(item as any).badgeColor || 'bg-white text-black'}`}>
+                      {(item as any).badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -1228,6 +1490,46 @@ export default function AdminDashboardPage() {
             </h2>
           </div>
 
+          <div className="flex items-center gap-3 font-mono">
+            {/* Realtime Live Pulse */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 text-[11px]">
+              <span className={`w-2 h-2 rounded-full ${realtimeConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span className="hidden sm:inline text-neutral-300">
+                {realtimeConnected ? 'LIVE REAL-TIME' : 'CONNECTING...'}
+              </span>
+            </div>
+
+            {/* Sound Chime Toggle */}
+            <button
+              onClick={() => setSoundEnabled((prev) => !prev)}
+              className={`p-2 rounded-xl border transition-colors ${
+                soundEnabled
+                  ? 'bg-neutral-900 border-neutral-700 text-emerald-400'
+                  : 'bg-neutral-950 border-neutral-800 text-neutral-500'
+              }`}
+              title={soundEnabled ? 'Chime Alert Enabled (Click to Mute)' : 'Chime Alert Muted (Click to Unmute)'}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+
+            {/* Notifications Bell */}
+            <button
+              onClick={() => {
+                setActiveTab('notifications');
+                if (typeof window !== 'undefined') window.history.pushState(null, '', '/admin/notifications');
+              }}
+              className="relative p-2 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700 transition-colors"
+              title="Notifications Center"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-black text-[9px] font-bold flex items-center justify-center animate-pulse">
+                  {unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
             <button
               onClick={loadAllData}
@@ -1256,12 +1558,43 @@ export default function AdminDashboardPage() {
           {/* ========================================================= */}
           {activeTab === 'dashboard' && stats && (
             <div className="space-y-8 animate-fade-in">
+              {/* Interactive Date Range Filter */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-neutral-900 border border-neutral-800 font-mono text-xs">
+                <div className="flex items-center gap-2 text-neutral-400">
+                  <Calendar className="w-4 h-4 text-emerald-400" />
+                  <span className="font-bold text-white uppercase text-[11px]">Analytics Timeframe:</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { id: 'all', label: 'All Time' },
+                    { id: 'today', label: 'Today' },
+                    { id: 'yesterday', label: 'Yesterday' },
+                    { id: '7d', label: 'Last 7 Days' },
+                    { id: '30d', label: 'Last 30 Days' },
+                    { id: 'this_month', label: 'This Month' },
+                    { id: 'last_month', label: 'Last Month' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setDateFilter(f.id as any)}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-mono transition-colors ${
+                        dateFilter === f.id
+                          ? 'bg-white text-black font-bold shadow'
+                          : 'bg-neutral-950 text-neutral-400 hover:text-white border border-neutral-800'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* 8 Primary KPI Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 <div className="p-5 rounded-3xl bg-neutral-900 border border-neutral-800 space-y-1">
                   <span className="text-[10px] uppercase font-mono text-neutral-400 block">TOTAL REVENUE</span>
                   <div className="font-mono text-xl sm:text-2xl font-black text-white">
-                    ₹{stats.totalRevenue.toLocaleString('en-IN')}
+                    ₹{(filteredStats || stats).totalRevenue.toLocaleString('en-IN')}
                   </div>
                   <span className="text-[11px] text-emerald-400 font-mono">Net confirmed earnings</span>
                 </div>
@@ -1269,7 +1602,7 @@ export default function AdminDashboardPage() {
                 <div className="p-5 rounded-3xl bg-neutral-900 border border-neutral-800 space-y-1">
                   <span className="text-[10px] uppercase font-mono text-neutral-400 block">TOTAL ORDERS</span>
                   <div className="font-mono text-xl sm:text-2xl font-black text-white">
-                    {stats.totalOrders}
+                    {(filteredStats || stats).totalOrders}
                   </div>
                   <span className="text-[11px] text-neutral-400 font-mono">Across all time</span>
                 </div>
@@ -1293,22 +1626,22 @@ export default function AdminDashboardPage() {
                 {/* 4 Status-Specific KPI Cards */}
                 <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800/80 space-y-1">
                   <span className="text-[10px] uppercase font-mono text-amber-400 block">PENDING ORDERS</span>
-                  <div className="font-mono text-lg font-bold text-white">{stats.pendingOrders}</div>
+                  <div className="font-mono text-lg font-bold text-white">{(filteredStats || stats).pendingOrders}</div>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800/80 space-y-1">
                   <span className="text-[10px] uppercase font-mono text-sky-400 block">PROCESSING / PACKED</span>
-                  <div className="font-mono text-lg font-bold text-white">{stats.processingOrders}</div>
+                  <div className="font-mono text-lg font-bold text-white">{(filteredStats || stats).processingOrders}</div>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800/80 space-y-1">
                   <span className="text-[10px] uppercase font-mono text-emerald-400 block">DELIVERED ORDERS</span>
-                  <div className="font-mono text-lg font-bold text-white">{stats.deliveredOrders}</div>
+                  <div className="font-mono text-lg font-bold text-white">{(filteredStats || stats).deliveredOrders}</div>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-neutral-950 border border-neutral-800/80 space-y-1">
                   <span className="text-[10px] uppercase font-mono text-red-400 block">CANCELLED / REFUNDED</span>
-                  <div className="font-mono text-lg font-bold text-white">{stats.cancelledOrders}</div>
+                  <div className="font-mono text-lg font-bold text-white">{(filteredStats || stats).cancelledOrders}</div>
                 </div>
               </div>
 
@@ -1786,7 +2119,16 @@ export default function AdminDashboardPage() {
                   <tbody className="divide-y divide-neutral-800/60 font-mono">
                     {filteredOrders.map((ord) => (
                       <tr key={ord.id} className="hover:bg-neutral-800/40 transition-colors">
-                        <td className="py-3.5 font-bold text-white">{ord.orderNumber}</td>
+                        <td className="py-3.5 font-bold text-white">
+                          <div className="flex items-center gap-1.5">
+                            <span>{ord.orderNumber}</span>
+                            {newOrderIds.has(ord.id) && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500 text-black uppercase animate-pulse">
+                                NEW
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-3.5 font-sans">
                           <div className="font-semibold text-white">{ord.customerName}</div>
                           <span className="text-[10px] text-neutral-400 font-mono">{ord.phone}</span>
@@ -1815,12 +2157,21 @@ export default function AdminDashboardPage() {
                           ₹{ord.totalAmount.toLocaleString('en-IN')}
                         </td>
                         <td className="py-3.5 text-right">
-                          <button
-                            onClick={() => openOrderDetails(ord)}
-                            className="px-3 py-1.5 rounded-full bg-white text-black font-bold text-[11px] hover:bg-neutral-200 transition-colors"
-                          >
-                            Open Details
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setInvoiceModalOrder(ord)}
+                              className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors"
+                              title="Print Official Tax Invoice"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => openOrderDetails(ord)}
+                              className="px-3 py-1.5 rounded-full bg-white text-black font-bold text-[11px] hover:bg-neutral-200 transition-colors"
+                            >
+                              Open Details
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2460,6 +2811,88 @@ export default function AdminDashboardPage() {
           {/* ========================================================= */}
           {/* TAB 12: SETTINGS & LOGS                                   */}
           {/* ========================================================= */}
+          {/* ========================================================= */}
+          {/* TAB: PAYMENTS & FINANCIAL TRANSACTIONS                    */}
+          {/* ========================================================= */}
+          {activeTab === 'payments' && (
+            <PaymentsView
+              payments={payments}
+              onRefresh={() =>
+                fetch('/api/admin/payments')
+                  .then((r) => r.json())
+                  .then((d) => d.success && setPayments(d.payments))
+              }
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB: SHIPPING & COURIER DISPATCH                          */}
+          {/* ========================================================= */}
+          {activeTab === 'shipping' && (
+            <ShippingView
+              shippingRecords={shippingRecords}
+              onRefresh={() =>
+                fetch('/api/admin/shipping')
+                  .then((r) => r.json())
+                  .then((d) => d.success && setShippingRecords(d.shipping))
+              }
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB: NOTIFICATIONS CENTER                                 */}
+          {/* ========================================================= */}
+          {activeTab === 'notifications' && (
+            <NotificationsView
+              notifications={notifications}
+              soundEnabled={soundEnabled}
+              onToggleSound={() => setSoundEnabled((prev) => !prev)}
+              onPlayTestChime={playLuxuryChime}
+              onRefresh={() =>
+                fetch('/api/admin/notifications')
+                  .then((r) => r.json())
+                  .then((d) => {
+                    if (d.success) {
+                      setNotifications(d.notifications);
+                      setUnreadNotificationsCount(d.unreadCount);
+                    }
+                  })
+              }
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB: ADMIN USERS & RBAC ROLES                             */}
+          {/* ========================================================= */}
+          {activeTab === 'users' && (
+            <UsersView
+              adminUsers={adminUsers}
+              onRefresh={() =>
+                fetch('/api/admin/users')
+                  .then((r) => r.json())
+                  .then((d) => d.success && setAdminUsers(d.users))
+              }
+              showToast={showToast}
+            />
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB: ACTIVITY AUDIT LOGS                                  */}
+          {/* ========================================================= */}
+          {activeTab === 'logs' && (
+            <ActivityLogsView
+              logs={activityLogs}
+              onRefresh={() =>
+                fetch('/api/admin/logs')
+                  .then((r) => r.json())
+                  .then((d) => d.success && setActivityLogs(d.logs))
+              }
+            />
+          )}
+
           {activeTab === 'settings' && settings && (
             <div className="space-y-8 animate-fade-in">
               <div className="flex items-center justify-between pb-4 border-b border-neutral-800">
@@ -2914,9 +3347,18 @@ export default function AdminDashboardPage() {
                   Placed on {new Date(selectedOrder.createdAt).toLocaleString('en-IN')}
                 </span>
               </div>
-              <button onClick={() => setSelectedOrder(null)} className="text-neutral-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setInvoiceModalOrder(selectedOrder)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 border border-neutral-700 hover:bg-neutral-800 text-xs font-mono text-emerald-400 transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Invoice</span>
+                </button>
+                <button onClick={() => setSelectedOrder(null)} className="text-neutral-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Customer & Address Details */}

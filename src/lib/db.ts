@@ -12,7 +12,12 @@ import {
   StockLog,
   AdminActivityLog,
   BannerSlide,
+  PaymentTransaction,
+  ShippingRecord,
+  AdminNotification,
+  AdminUser,
 } from './types';
+import { emitRealtimeEvent } from './events';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'database.json');
@@ -26,6 +31,10 @@ export interface DatabaseSchema {
   reviews: Record<string, Review[]>;
   stockLogs: StockLog[];
   activityLogs: AdminActivityLog[];
+  payments?: PaymentTransaction[];
+  shipping?: ShippingRecord[];
+  notifications?: AdminNotification[];
+  adminUsers?: AdminUser[];
   settings: {
     announcementText: string;
     announcementSubText: string;
@@ -420,6 +429,123 @@ export function initDB(): DatabaseSchema {
       });
     }
 
+    // Ensure payments collection exists
+    if (!dbData.payments || dbData.payments.length === 0) {
+      dbData.payments = dbData.orders.map((o) => ({
+        id: `tx-${o.id}`,
+        transactionId: o.paymentId || `TXN-GC-${o.orderNumber}`,
+        orderId: o.id,
+        orderNumber: o.orderNumber,
+        customerName: o.customerName,
+        customerEmail: o.email,
+        paymentGateway: (o.paymentMethod === 'ONLINE' ? 'Razorpay' : 'COD') as any,
+        paymentMethod: (o.paymentMethod === 'ONLINE' ? 'UPI' : 'Cash on Delivery') as any,
+        amount: o.totalAmount,
+        currency: 'INR',
+        status: (o.paymentStatus === 'PAID' ? 'Paid' : 'Pending') as any,
+        date: o.createdAt,
+      }));
+    }
+
+    // Ensure shipping collection exists
+    if (!dbData.shipping || dbData.shipping.length === 0) {
+      dbData.shipping = dbData.orders.map((o, idx) => ({
+        id: `ship-${o.id}`,
+        orderId: o.id,
+        orderNumber: o.orderNumber,
+        customerName: o.customerName,
+        phone: o.phone,
+        address: o.shippingAddress.fullAddress || `${o.shippingAddress.houseNo || ''} ${o.shippingAddress.street || ''}`,
+        city: o.shippingAddress.district || 'New Delhi',
+        state: o.shippingAddress.state || 'Delhi',
+        pincode: o.shippingAddress.pincode,
+        courierName: (['Delhivery', 'BlueDart', 'DTDC', 'XpressBees'][idx % 4] as any) || 'Delhivery',
+        trackingNumber: o.trackingNumber || `DEL-${90000000 + idx * 142}`,
+        dispatchDate: o.createdAt,
+        estimatedDelivery: o.estimatedDeliveryDate || 'Within 3 days',
+        status: (o.orderStatus === 'Delivered' ? 'Delivered' : o.orderStatus === 'Shipped' ? 'In Transit' : 'Manifested') as any,
+        shippingFee: o.deliveryCharge || 0,
+      }));
+    }
+
+    // Ensure notifications collection exists
+    if (!dbData.notifications || dbData.notifications.length === 0) {
+      dbData.notifications = [
+        {
+          id: 'notif-1',
+          type: 'order',
+          title: 'Live Concierge Active',
+          message: 'Real-time synchronization connected. Live customer orders and status events are now streaming.',
+          read: false,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: 'notif-2',
+          type: 'stock',
+          title: 'Low Stock Alert',
+          message: 'Aërona Sculptural Stiletto Mule has reached low inventory (4 units remaining).',
+          read: false,
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
+        },
+      ];
+    }
+
+    // Ensure admin users exist
+    if (!dbData.adminUsers || dbData.adminUsers.length === 0) {
+      dbData.adminUsers = [
+        {
+          id: 'usr-1',
+          name: 'Executive Atelier Admin',
+          email: 'admin@mirli.store',
+          role: 'super_admin',
+          roleTitle: 'Chief Executive & Super Admin',
+          status: 'active',
+          lastLogin: new Date().toISOString(),
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'usr-2',
+          name: 'Rohan Verma',
+          email: 'rohan.products@goyalcollections.com',
+          role: 'product_manager',
+          roleTitle: 'Head of Product & Catalog',
+          status: 'active',
+          lastLogin: new Date(Date.now() - 86400000).toISOString(),
+          createdAt: '2026-01-15T00:00:00.000Z',
+        },
+        {
+          id: 'usr-3',
+          name: 'Priya Sharma',
+          email: 'priya.logistics@goyalcollections.com',
+          role: 'order_manager',
+          roleTitle: 'Logistics & Order Fulfillment Lead',
+          status: 'active',
+          lastLogin: new Date(Date.now() - 43200000).toISOString(),
+          createdAt: '2026-01-20T00:00:00.000Z',
+        },
+        {
+          id: 'usr-4',
+          name: 'Ananya Roy',
+          email: 'ananya.support@goyalcollections.com',
+          role: 'support_manager',
+          roleTitle: 'Client Concierge & Support Specialist',
+          status: 'active',
+          lastLogin: new Date(Date.now() - 172800000).toISOString(),
+          createdAt: '2026-02-01T00:00:00.000Z',
+        },
+        {
+          id: 'usr-5',
+          name: 'Vikramaditya Singhania',
+          email: 'vikram.finance@goyalcollections.com',
+          role: 'finance_manager',
+          roleTitle: 'Chief Financial Controller',
+          status: 'active',
+          lastLogin: new Date(Date.now() - 259200000).toISOString(),
+          createdAt: '2026-02-05T00:00:00.000Z',
+        },
+      ];
+    }
+
     memoryCache = dbData;
     return dbData;
   } catch (err) {
@@ -647,6 +773,7 @@ export function createProduct(
   logAdminActivity('Product Created', 'Product', `Created "${newProduct.name}" (SKU: ${sku})`, adminEmail);
 
   saveDB(db);
+  emitRealtimeEvent('product:created', newProduct);
   return newProduct;
 }
 
@@ -687,6 +814,7 @@ export function updateProduct(
   );
 
   saveDB(db);
+  emitRealtimeEvent('product:updated', db.products[index]);
   return db.products[index];
 }
 
@@ -697,9 +825,9 @@ export function deleteProduct(id: string, adminEmail = 'admin@mirli.store'): boo
 
   db.products = db.products.filter((p) => p.id !== id);
 
-  logAdminActivity('Product Deleted', 'Product', `Permanently removed "${prod.name}" (SKU: ${prod.sku || prod.id})`, adminEmail);
-
+  logAdminActivity('Product Deleted', 'Product', `Deleted "${prod.name}" (ID: ${id})`, adminEmail);
   saveDB(db);
+  emitRealtimeEvent('product:deleted', { id, name: prod.name });
   return true;
 }
 
@@ -1081,7 +1209,74 @@ export function createOrder(data: {
 
   logAdminActivity('Order Placed', 'Order', `New order ${orderNumber} placed for ₹${data.totalAmount}`, 'System');
 
+  // Generate corresponding Payment Transaction record
+  if (!db.payments) db.payments = [];
+  const paymentRecord: PaymentTransaction = {
+    id: `tx-${newOrder.id}`,
+    transactionId: newOrder.paymentId || `TXN-GC-${newOrder.orderNumber}`,
+    orderId: newOrder.id,
+    orderNumber: newOrder.orderNumber,
+    customerName: newOrder.customerName,
+    customerEmail: newOrder.email,
+    paymentGateway: newOrder.paymentMethod === 'ONLINE' ? 'Razorpay' : 'COD',
+    paymentMethod: newOrder.paymentMethod === 'ONLINE' ? 'UPI' : 'Cash on Delivery',
+    amount: newOrder.totalAmount,
+    currency: 'INR',
+    status: newOrder.paymentStatus === 'PAID' ? 'Paid' : 'Pending',
+    date: now.toISOString(),
+  };
+  db.payments.unshift(paymentRecord);
+
+  // Generate corresponding Shipping Record
+  if (!db.shipping) db.shipping = [];
+  const shippingRecord: ShippingRecord = {
+    id: `ship-${newOrder.id}`,
+    orderId: newOrder.id,
+    orderNumber: newOrder.orderNumber,
+    customerName: newOrder.customerName,
+    phone: newOrder.phone,
+    address: newOrder.shippingAddress.fullAddress || `${newOrder.shippingAddress.houseNo || ''} ${newOrder.shippingAddress.street || ''}`,
+    city: newOrder.shippingAddress.district || 'New Delhi',
+    state: newOrder.shippingAddress.state || 'Delhi',
+    pincode: newOrder.shippingAddress.pincode,
+    courierName: 'Delhivery',
+    trackingNumber: `DEL-${Date.now().toString().slice(-8)}`,
+    dispatchDate: now.toISOString(),
+    estimatedDelivery: estimatedDeliveryDate,
+    status: 'Manifested',
+    shippingFee: newOrder.deliveryCharge,
+  };
+  db.shipping.unshift(shippingRecord);
+
+  // Generate Admin Real-time Notification
+  if (!db.notifications) db.notifications = [];
+  const newNotification: AdminNotification = {
+    id: `notif-${Date.now()}`,
+    type: 'order',
+    title: 'New Order Received!',
+    message: `Order #${newOrder.orderNumber} for ₹${newOrder.totalAmount.toLocaleString('en-IN')} by ${newOrder.customerName}`,
+    link: `/admin/orders/${newOrder.id}`,
+    read: false,
+    createdAt: now.toISOString(),
+    metadata: {
+      orderId: newOrder.id,
+      orderNumber: newOrder.orderNumber,
+      amount: newOrder.totalAmount,
+      customerName: newOrder.customerName,
+    },
+  };
+  db.notifications.unshift(newNotification);
+
   saveDB(db);
+
+  // Broadcast real-time event to all connected admin and customer clients
+  emitRealtimeEvent('order:created', {
+    order: newOrder,
+    notification: newNotification,
+    payment: paymentRecord,
+    shipping: shippingRecord,
+  });
+
   return newOrder;
 }
 
@@ -1204,7 +1399,37 @@ export function updateOrderStatus(
     adminEmail
   );
 
+  // Sync shipping record status
+  if (db.shipping) {
+    const shipRec = db.shipping.find((s) => s.orderId === order.id || s.orderNumber === order.orderNumber);
+    if (shipRec) {
+      if (newStatus === 'Shipped') shipRec.status = 'In Transit';
+      else if (newStatus === 'Out for Delivery') shipRec.status = 'Out for Delivery';
+      else if (newStatus === 'Delivered') shipRec.status = 'Delivered';
+      else if (newStatus === 'Returned') shipRec.status = 'Returned';
+      if (options?.trackingNumber) shipRec.trackingNumber = options.trackingNumber;
+      if (options?.courierName) shipRec.courierName = options.courierName as any;
+    }
+  }
+
+  // Sync payment record status if refunded or delivered COD
+  if (db.payments) {
+    const payRec = db.payments.find((p) => p.orderId === order.id || p.orderNumber === order.orderNumber);
+    if (payRec) {
+      if (newStatus === 'Delivered' && payRec.paymentMethod === 'Cash on Delivery') {
+        payRec.status = 'Paid';
+      } else if (newStatus === 'Refunded') {
+        payRec.status = 'Refunded';
+        payRec.refundAmount = order.totalAmount;
+      }
+    }
+  }
+
   saveDB(db);
+
+  // Broadcast real-time order update event
+  emitRealtimeEvent('order:updated', order);
+
   return order;
 }
 
@@ -1569,4 +1794,161 @@ export function getAdminStats() {
     bestSellingProducts,
     lowStockProducts: lowStockProducts.slice(0, 6),
   };
+}
+
+// ================= PAYMENTS & TRANSACTIONS =================
+export function getPayments(search?: string, status?: string): PaymentTransaction[] {
+  const db = initDB();
+  let list = db.payments || [];
+  if (status && status !== 'all') {
+    list = list.filter((p) => p.status.toLowerCase() === status.toLowerCase());
+  }
+  if (search) {
+    const q = search.toLowerCase().trim();
+    list = list.filter(
+      (p) =>
+        p.transactionId.toLowerCase().includes(q) ||
+        p.orderNumber.toLowerCase().includes(q) ||
+        p.customerName.toLowerCase().includes(q) ||
+        p.customerEmail.toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+
+export function updatePaymentStatus(
+  id: string,
+  status: PaymentTransaction['status'],
+  refundAmount?: number,
+  adminEmail = 'admin@mirli.store'
+): PaymentTransaction | null {
+  const db = initDB();
+  if (!db.payments) db.payments = [];
+  const index = db.payments.findIndex((p) => p.id === id || p.transactionId === id);
+  if (index === -1) return null;
+
+  db.payments[index].status = status;
+  if (refundAmount !== undefined) {
+    db.payments[index].refundAmount = refundAmount;
+    db.payments[index].refundId = `ref_${Date.now()}`;
+  }
+
+  logAdminActivity('Payment Status Updated', 'Payment', `Payment ${id} set to ${status}`, adminEmail);
+  saveDB(db);
+  return db.payments[index];
+}
+
+// ================= SHIPPING MANAGEMENT =================
+export function getShippingRecords(search?: string, status?: string): ShippingRecord[] {
+  const db = initDB();
+  let list = db.shipping || [];
+  if (status && status !== 'all') {
+    list = list.filter((s) => s.status.toLowerCase() === status.toLowerCase());
+  }
+  if (search) {
+    const q = search.toLowerCase().trim();
+    list = list.filter(
+      (s) =>
+        s.orderNumber.toLowerCase().includes(q) ||
+        s.trackingNumber.toLowerCase().includes(q) ||
+        s.customerName.toLowerCase().includes(q) ||
+        s.pincode.includes(q) ||
+        s.city.toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+
+export function updateShippingRecord(
+  id: string,
+  updates: Partial<ShippingRecord>,
+  adminEmail = 'admin@mirli.store'
+): ShippingRecord | null {
+  const db = initDB();
+  if (!db.shipping) db.shipping = [];
+  const index = db.shipping.findIndex((s) => s.id === id || s.orderNumber === id);
+  if (index === -1) return null;
+
+  db.shipping[index] = { ...db.shipping[index], ...updates };
+  logAdminActivity('Shipping Updated', 'Shipping', `Shipment ${db.shipping[index].orderNumber} updated`, adminEmail);
+  saveDB(db);
+  return db.shipping[index];
+}
+
+// ================= NOTIFICATIONS =================
+export function getAdminNotifications(): AdminNotification[] {
+  const db = initDB();
+  return db.notifications || [];
+}
+
+export function markNotificationRead(id: string): boolean {
+  const db = initDB();
+  if (!db.notifications) return false;
+  if (id === 'all') {
+    db.notifications.forEach((n) => (n.read = true));
+  } else {
+    const notif = db.notifications.find((n) => n.id === id);
+    if (notif) notif.read = true;
+  }
+  saveDB(db);
+  return true;
+}
+
+export function clearAllNotifications(): boolean {
+  const db = initDB();
+  db.notifications = [];
+  saveDB(db);
+  return true;
+}
+
+// ================= ADMIN USERS & ROLES =================
+export function getAdminUsers(): AdminUser[] {
+  const db = initDB();
+  return db.adminUsers || [];
+}
+
+export function createAdminUser(
+  user: Omit<AdminUser, 'id' | 'createdAt'>,
+  adminEmail = 'admin@mirli.store'
+): AdminUser {
+  const db = initDB();
+  if (!db.adminUsers) db.adminUsers = [];
+  const newUser: AdminUser = {
+    ...user,
+    id: `usr-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+  };
+  db.adminUsers.unshift(newUser);
+  logAdminActivity('Admin User Created', 'User', `Created admin ${newUser.name} (${newUser.email}) with role ${newUser.role}`, adminEmail);
+  saveDB(db);
+  return newUser;
+}
+
+export function updateAdminUser(
+  id: string,
+  updates: Partial<AdminUser>,
+  adminEmail = 'admin@mirli.store'
+): AdminUser | null {
+  const db = initDB();
+  if (!db.adminUsers) return null;
+  const index = db.adminUsers.findIndex((u) => u.id === id);
+  if (index === -1) return null;
+
+  db.adminUsers[index] = { ...db.adminUsers[index], ...updates };
+  logAdminActivity('Admin User Updated', 'User', `Updated user ${db.adminUsers[index].email}`, adminEmail);
+  saveDB(db);
+  return db.adminUsers[index];
+}
+
+export function deleteAdminUser(id: string, adminEmail = 'admin@mirli.store'): boolean {
+  const db = initDB();
+  if (!db.adminUsers) return false;
+  const target = db.adminUsers.find((u) => u.id === id);
+  if (!target) return false;
+  if (target.email === 'admin@mirli.store') return false; // Prevent deleting master super admin
+
+  db.adminUsers = db.adminUsers.filter((u) => u.id !== id);
+  logAdminActivity('Admin User Deleted', 'User', `Deleted user ${target.email}`, adminEmail);
+  saveDB(db);
+  return true;
 }

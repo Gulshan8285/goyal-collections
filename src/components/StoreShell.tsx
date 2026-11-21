@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BottomFloatingCart from '@/components/BottomFloatingCart';
+import RealtimeListener from '@/components/RealtimeListener';
 
 export default function StoreShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -16,6 +17,7 @@ export default function StoreShell({ children }: { children: React.ReactNode }) 
 
   return (
     <>
+      <RealtimeListener />
       <Header />
       <main className="flex-1 w-full max-w-full overflow-x-hidden bg-black text-white">
         {children}

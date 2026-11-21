@@ -188,7 +188,7 @@ export interface StockLog {
 export interface AdminActivityLog {
   id: string;
   action: string;
-  category: 'Product' | 'Order' | 'Category' | 'Customer' | 'Inventory' | 'Coupon' | 'Banner' | 'Settings' | 'Auth';
+  category: 'Product' | 'Order' | 'Category' | 'Customer' | 'Inventory' | 'Coupon' | 'Banner' | 'Settings' | 'Auth' | 'Payment' | 'Shipping' | 'User';
   details: string;
   adminEmail: string;
   timestamp: string;
@@ -223,4 +223,64 @@ export interface PincodeInfo {
   postOffices: string[];
   isServiceable: boolean;
   estimatedDays: number;
+}
+
+export interface PaymentTransaction {
+  id: string;
+  transactionId: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  paymentGateway: 'Razorpay' | 'Stripe' | 'COD' | 'Cashfree' | 'UPI';
+  paymentMethod: 'UPI' | 'Credit Card' | 'Debit Card' | 'NetBanking' | 'Cash on Delivery';
+  amount: number;
+  currency: string;
+  status: 'Paid' | 'Pending' | 'Failed' | 'Refunded' | 'Partially Refunded';
+  date: string;
+  refundAmount?: number;
+  refundId?: string;
+  notes?: string;
+}
+
+export interface ShippingRecord {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  courierName: 'Delhivery' | 'BlueDart' | 'DTDC' | 'XpressBees' | 'SpeedPost' | 'Standard Air';
+  trackingNumber: string;
+  trackingUrl?: string;
+  dispatchDate: string;
+  estimatedDelivery: string;
+  status: 'Manifested' | 'Picked Up' | 'In Transit' | 'Out for Delivery' | 'Delivered' | 'Returned' | 'RTO';
+  shippingFee: number;
+  weightGrams?: number;
+}
+
+export interface AdminNotification {
+  id: string;
+  type: 'order' | 'stock' | 'return' | 'review' | 'system' | 'customer';
+  title: string;
+  message: string;
+  link?: string;
+  read: boolean;
+  createdAt: string;
+  metadata?: any;
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'super_admin' | 'product_manager' | 'order_manager' | 'support_manager' | 'finance_manager';
+  roleTitle: string;
+  status: 'active' | 'inactive';
+  lastLogin?: string;
+  createdAt: string;
 }
