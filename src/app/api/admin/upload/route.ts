@@ -23,15 +23,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    try {
+      if (!fs.existsSync(UPLOADS_DIR)) {
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      }
+    } catch (e) {
+      // In read-only environment, will fallback to data URL
     }
 
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
 
     if (!files || files.length === 0) {
-      // Check for single file
       const singleFile = formData.get('file') as File;
       if (singleFile) {
         files.push(singleFile);
@@ -59,7 +62,6 @@ export async function POST(request: NextRequest) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // Clean safe filename preserving original extension
       const safeName = file.name
         .replace(originalExt, '')
         .toLowerCase()
@@ -67,9 +69,15 @@ export async function POST(request: NextRequest) {
       const uniqueName = `mirli-${safeName}-${Date.now()}${originalExt}`;
       const filePath = path.join(UPLOADS_DIR, uniqueName);
 
-      fs.writeFileSync(filePath, buffer);
+      let publicUrl = `/uploads/${uniqueName}`;
+      try {
+        fs.writeFileSync(filePath, buffer);
+      } catch (err: any) {
+        // Fallback to data URL on read-only environments
+        const mime = file.type || 'image/jpeg';
+        publicUrl = `data:${mime};base64,${buffer.toString('base64')}`;
+      }
 
-      const publicUrl = `/uploads/${uniqueName}`;
       uploadedResults.push({
         url: publicUrl,
         originalName: file.name,
@@ -88,10 +96,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       files: uploadedResults,
-      url: uploadedResults[0]?.url, // convenience for single file
+      url: uploadedResults[0]?.url,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-

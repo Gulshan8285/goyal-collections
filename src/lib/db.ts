@@ -19,8 +19,21 @@ import {
 } from './types';
 import { emitRealtimeEvent } from './events';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_FILE = path.join(DATA_DIR, 'database.json');
+function getWritableDBPath(): string {
+  if (process.env.VERCEL || process.cwd().startsWith('/var/task')) {
+    return path.join('/tmp', 'database.json');
+  }
+  try {
+    const localDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
+    }
+    fs.accessSync(localDir, fs.constants.W_OK);
+    return path.join(localDir, 'database.json');
+  } catch {
+    return path.join('/tmp', 'database.json');
+  }
+}
 
 export interface DatabaseSchema {
   products: Product[];
@@ -337,13 +350,29 @@ export function initDB(): DatabaseSchema {
     return memoryCache;
   }
 
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  let dbData: DatabaseSchema | null = null;
+  const writablePath = getWritableDBPath();
+  const bundledPath = path.join(process.cwd(), 'data', 'database.json');
+
+  if (fs.existsSync(writablePath)) {
+    try {
+      const raw = fs.readFileSync(writablePath, 'utf-8');
+      dbData = JSON.parse(raw);
+    } catch (e) {
+      console.warn('Could not parse writable DB, falling back');
+    }
   }
 
-  let dbData: DatabaseSchema;
+  if (!dbData && fs.existsSync(bundledPath)) {
+    try {
+      const raw = fs.readFileSync(bundledPath, 'utf-8');
+      dbData = JSON.parse(raw);
+    } catch (e) {
+      console.warn('Could not parse bundled DB, using initial data');
+    }
+  }
 
-  if (!fs.existsSync(DB_FILE)) {
+  if (!dbData) {
     dbData = {
       products: INITIAL_PRODUCTS.map((p) => ({
         ...p,
@@ -380,201 +409,187 @@ export function initDB(): DatabaseSchema {
       ],
       settings: DEFAULT_SETTINGS,
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(dbData, null, 2), 'utf-8');
-    memoryCache = dbData;
-    return dbData;
   }
+
+  if (!dbData.customers || dbData.customers.length === 0) {
+    dbData.customers = INITIAL_CUSTOMERS;
+  }
+  if (!dbData.stockLogs) {
+    dbData.stockLogs = [];
+  }
+  if (!dbData.activityLogs) {
+    dbData.activityLogs = [];
+  }
+  if (!dbData.settings) {
+    dbData.settings = DEFAULT_SETTINGS;
+  }
+  if (!dbData.settings.heroSlides || dbData.settings.heroSlides.length === 0) {
+    dbData.settings.heroSlides = DEFAULT_SLIDES;
+  } else {
+    dbData.settings.heroSlides = dbData.settings.heroSlides.map((s, idx) => ({
+      ...s,
+      active: s.active !== undefined ? s.active : true,
+      order: s.order !== undefined ? s.order : idx + 1,
+    }));
+  }
+
+  dbData.products = (dbData.products || INITIAL_PRODUCTS).map((p) => ({
+    ...p,
+    sku: p.sku || `MRL-${p.category.slice(0, 2).toUpperCase()}-${p.id.split('-').pop()?.toUpperCase() || '001'}`,
+    status: p.status || 'active',
+  }));
+
+  if (dbData.reviews) {
+    Object.keys(dbData.reviews).forEach((pid) => {
+      dbData.reviews[pid] = dbData.reviews[pid].map((r) => ({
+        ...r,
+        status: r.status || 'approved',
+      }));
+    });
+  }
+
+  if (!dbData.payments || dbData.payments.length === 0) {
+    dbData.payments = (dbData.orders || []).map((o) => ({
+      id: `tx-${o.id}`,
+      transactionId: o.paymentId || `TXN-GC-${o.orderNumber}`,
+      orderId: o.id,
+      orderNumber: o.orderNumber,
+      customerName: o.customerName,
+      customerEmail: o.email,
+      paymentGateway: (o.paymentMethod === 'ONLINE' ? 'Razorpay' : 'COD') as any,
+      paymentMethod: (o.paymentMethod === 'ONLINE' ? 'UPI' : 'Cash on Delivery') as any,
+      amount: o.totalAmount,
+      currency: 'INR',
+      status: (o.paymentStatus === 'PAID' ? 'Paid' : 'Pending') as any,
+      date: o.createdAt,
+    }));
+  }
+
+  if (!dbData.shipping || dbData.shipping.length === 0) {
+    dbData.shipping = (dbData.orders || []).map((o, idx) => ({
+      id: `ship-${o.id}`,
+      orderId: o.id,
+      orderNumber: o.orderNumber,
+      customerName: o.customerName,
+      phone: o.phone,
+      address: o.shippingAddress.fullAddress || `${o.shippingAddress.houseNo || ''} ${o.shippingAddress.street || ''}`,
+      city: o.shippingAddress.district || 'New Delhi',
+      state: o.shippingAddress.state || 'Delhi',
+      pincode: o.shippingAddress.pincode,
+      courierName: (['Delhivery', 'BlueDart', 'DTDC', 'XpressBees'][idx % 4] as any) || 'Delhivery',
+      trackingNumber: o.trackingNumber || `DEL-${90000000 + idx * 142}`,
+      dispatchDate: o.createdAt,
+      estimatedDelivery: o.estimatedDeliveryDate || 'Within 3 days',
+      status: (o.orderStatus === 'Delivered' ? 'Delivered' : o.orderStatus === 'Shipped' ? 'In Transit' : 'Manifested') as any,
+      shippingFee: o.deliveryCharge || 0,
+    }));
+  }
+
+  if (!dbData.notifications || dbData.notifications.length === 0) {
+    dbData.notifications = [
+      {
+        id: 'notif-1',
+        type: 'order',
+        title: 'Live Concierge Active',
+        message: 'Real-time synchronization connected. Live customer orders and status events are now streaming.',
+        read: false,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'notif-2',
+        type: 'stock',
+        title: 'Low Stock Alert',
+        message: 'Aërona Sculptural Stiletto Mule has reached low inventory (4 units remaining).',
+        read: false,
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+      },
+    ];
+  }
+
+  if (!dbData.adminUsers || dbData.adminUsers.length === 0) {
+    dbData.adminUsers = [
+      {
+        id: 'usr-1',
+        name: 'Executive Atelier Admin',
+        email: 'admin@mirli.store',
+        role: 'super_admin',
+        roleTitle: 'Chief Executive & Super Admin',
+        status: 'active',
+        lastLogin: new Date().toISOString(),
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'usr-2',
+        name: 'Rohan Verma',
+        email: 'rohan.products@goyalcollections.com',
+        role: 'product_manager',
+        roleTitle: 'Head of Product & Catalog',
+        status: 'active',
+        lastLogin: new Date(Date.now() - 86400000).toISOString(),
+        createdAt: '2026-01-15T00:00:00.000Z',
+      },
+      {
+        id: 'usr-3',
+        name: 'Priya Sharma',
+        email: 'priya.logistics@goyalcollections.com',
+        role: 'order_manager',
+        roleTitle: 'Logistics & Order Fulfillment Lead',
+        status: 'active',
+        lastLogin: new Date(Date.now() - 43200000).toISOString(),
+        createdAt: '2026-01-20T00:00:00.000Z',
+      },
+      {
+        id: 'usr-4',
+        name: 'Ananya Roy',
+        email: 'ananya.support@goyalcollections.com',
+        role: 'support_manager',
+        roleTitle: 'Client Concierge & Support Specialist',
+        status: 'active',
+        lastLogin: new Date(Date.now() - 172800000).toISOString(),
+        createdAt: '2026-02-01T00:00:00.000Z',
+      },
+      {
+        id: 'usr-5',
+        name: 'Vikramaditya Singhania',
+        email: 'vikram.finance@goyalcollections.com',
+        role: 'finance_manager',
+        roleTitle: 'Chief Financial Controller',
+        status: 'active',
+        lastLogin: new Date(Date.now() - 259200000).toISOString(),
+        createdAt: '2026-02-05T00:00:00.000Z',
+      },
+    ];
+  }
+
+  memoryCache = dbData;
 
   try {
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    dbData = JSON.parse(raw);
-
-    // Ensure all required fields exist in existing DB
-    if (!dbData.customers || dbData.customers.length === 0) {
-      dbData.customers = INITIAL_CUSTOMERS;
+    const targetDir = path.dirname(writablePath);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
     }
-    if (!dbData.stockLogs) {
-      dbData.stockLogs = [];
-    }
-    if (!dbData.activityLogs) {
-      dbData.activityLogs = [];
-    }
-    if (!dbData.settings) {
-      dbData.settings = DEFAULT_SETTINGS;
-    }
-    if (!dbData.settings.heroSlides || dbData.settings.heroSlides.length === 0) {
-      dbData.settings.heroSlides = DEFAULT_SLIDES;
-    } else {
-      dbData.settings.heroSlides = dbData.settings.heroSlides.map((s, idx) => ({
-        ...s,
-        active: s.active !== undefined ? s.active : true,
-        order: s.order !== undefined ? s.order : idx + 1,
-      }));
-    }
-
-    // Ensure products have SKU and status
-    dbData.products = dbData.products.map((p) => ({
-      ...p,
-      sku: p.sku || `MRL-${p.category.slice(0, 2).toUpperCase()}-${p.id.split('-').pop()?.toUpperCase() || '001'}`,
-      status: p.status || 'active',
-    }));
-
-    // Ensure reviews have status
-    if (dbData.reviews) {
-      Object.keys(dbData.reviews).forEach((pid) => {
-        dbData.reviews[pid] = dbData.reviews[pid].map((r) => ({
-          ...r,
-          status: r.status || 'approved',
-        }));
-      });
-    }
-
-    // Ensure payments collection exists
-    if (!dbData.payments || dbData.payments.length === 0) {
-      dbData.payments = dbData.orders.map((o) => ({
-        id: `tx-${o.id}`,
-        transactionId: o.paymentId || `TXN-GC-${o.orderNumber}`,
-        orderId: o.id,
-        orderNumber: o.orderNumber,
-        customerName: o.customerName,
-        customerEmail: o.email,
-        paymentGateway: (o.paymentMethod === 'ONLINE' ? 'Razorpay' : 'COD') as any,
-        paymentMethod: (o.paymentMethod === 'ONLINE' ? 'UPI' : 'Cash on Delivery') as any,
-        amount: o.totalAmount,
-        currency: 'INR',
-        status: (o.paymentStatus === 'PAID' ? 'Paid' : 'Pending') as any,
-        date: o.createdAt,
-      }));
-    }
-
-    // Ensure shipping collection exists
-    if (!dbData.shipping || dbData.shipping.length === 0) {
-      dbData.shipping = dbData.orders.map((o, idx) => ({
-        id: `ship-${o.id}`,
-        orderId: o.id,
-        orderNumber: o.orderNumber,
-        customerName: o.customerName,
-        phone: o.phone,
-        address: o.shippingAddress.fullAddress || `${o.shippingAddress.houseNo || ''} ${o.shippingAddress.street || ''}`,
-        city: o.shippingAddress.district || 'New Delhi',
-        state: o.shippingAddress.state || 'Delhi',
-        pincode: o.shippingAddress.pincode,
-        courierName: (['Delhivery', 'BlueDart', 'DTDC', 'XpressBees'][idx % 4] as any) || 'Delhivery',
-        trackingNumber: o.trackingNumber || `DEL-${90000000 + idx * 142}`,
-        dispatchDate: o.createdAt,
-        estimatedDelivery: o.estimatedDeliveryDate || 'Within 3 days',
-        status: (o.orderStatus === 'Delivered' ? 'Delivered' : o.orderStatus === 'Shipped' ? 'In Transit' : 'Manifested') as any,
-        shippingFee: o.deliveryCharge || 0,
-      }));
-    }
-
-    // Ensure notifications collection exists
-    if (!dbData.notifications || dbData.notifications.length === 0) {
-      dbData.notifications = [
-        {
-          id: 'notif-1',
-          type: 'order',
-          title: 'Live Concierge Active',
-          message: 'Real-time synchronization connected. Live customer orders and status events are now streaming.',
-          read: false,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'notif-2',
-          type: 'stock',
-          title: 'Low Stock Alert',
-          message: 'Aërona Sculptural Stiletto Mule has reached low inventory (4 units remaining).',
-          read: false,
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-        },
-      ];
-    }
-
-    // Ensure admin users exist
-    if (!dbData.adminUsers || dbData.adminUsers.length === 0) {
-      dbData.adminUsers = [
-        {
-          id: 'usr-1',
-          name: 'Executive Atelier Admin',
-          email: 'admin@mirli.store',
-          role: 'super_admin',
-          roleTitle: 'Chief Executive & Super Admin',
-          status: 'active',
-          lastLogin: new Date().toISOString(),
-          createdAt: '2026-01-01T00:00:00.000Z',
-        },
-        {
-          id: 'usr-2',
-          name: 'Rohan Verma',
-          email: 'rohan.products@goyalcollections.com',
-          role: 'product_manager',
-          roleTitle: 'Head of Product & Catalog',
-          status: 'active',
-          lastLogin: new Date(Date.now() - 86400000).toISOString(),
-          createdAt: '2026-01-15T00:00:00.000Z',
-        },
-        {
-          id: 'usr-3',
-          name: 'Priya Sharma',
-          email: 'priya.logistics@goyalcollections.com',
-          role: 'order_manager',
-          roleTitle: 'Logistics & Order Fulfillment Lead',
-          status: 'active',
-          lastLogin: new Date(Date.now() - 43200000).toISOString(),
-          createdAt: '2026-01-20T00:00:00.000Z',
-        },
-        {
-          id: 'usr-4',
-          name: 'Ananya Roy',
-          email: 'ananya.support@goyalcollections.com',
-          role: 'support_manager',
-          roleTitle: 'Client Concierge & Support Specialist',
-          status: 'active',
-          lastLogin: new Date(Date.now() - 172800000).toISOString(),
-          createdAt: '2026-02-01T00:00:00.000Z',
-        },
-        {
-          id: 'usr-5',
-          name: 'Vikramaditya Singhania',
-          email: 'vikram.finance@goyalcollections.com',
-          role: 'finance_manager',
-          roleTitle: 'Chief Financial Controller',
-          status: 'active',
-          lastLogin: new Date(Date.now() - 259200000).toISOString(),
-          createdAt: '2026-02-05T00:00:00.000Z',
-        },
-      ];
-    }
-
-    memoryCache = dbData;
-    return dbData;
-  } catch (err) {
-    console.error('Failed reading DB file, reinitializing', err);
-    dbData = {
-      products: INITIAL_PRODUCTS,
-      categories: CATEGORIES,
-      orders: INITIAL_ORDERS,
-      customers: INITIAL_CUSTOMERS,
-      coupons: INITIAL_COUPONS,
-      reviews: INITIAL_REVIEWS,
-      stockLogs: [],
-      activityLogs: [],
-      settings: DEFAULT_SETTINGS,
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(dbData, null, 2), 'utf-8');
-    memoryCache = dbData;
-    return dbData;
+    fs.writeFileSync(writablePath, JSON.stringify(dbData, null, 2), 'utf-8');
+  } catch (e: any) {
+    // In read-only filesystem, memoryCache handles state!
   }
+
+  return dbData;
 }
 
 export function saveDB(data: DatabaseSchema): void {
   memoryCache = data;
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    const writablePath = getWritableDBPath();
+    const targetDir = path.dirname(writablePath);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    const tempFile = `${writablePath}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempFile, writablePath);
+  } catch (err: any) {
+    console.warn('Filesystem save notice (active memory state):', err.message);
   }
-  const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
-  fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tempFile, DB_FILE);
 }
 
 // ================= ACTIVITY LOGS =================

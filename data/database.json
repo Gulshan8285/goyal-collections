@@ -148,7 +148,7 @@
     {
       "id": "mirli-fw-003",
       "slug": "mirli-aerona-stiletto-mule",
-      "name": "A\u00ebrona Sculptural Stiletto Mule",
+      "name": "Aërona Sculptural Stiletto Mule",
       "hindiName": "",
       "category": "footwear",
       "categoryTitle": "Footwear",
@@ -212,7 +212,7 @@
     {
       "id": "mirli-fw-004",
       "slug": "mirli-celeste-monochrome-loafers",
-      "name": "C\u00e9leste Chunky Sole Loafer",
+      "name": "Céleste Chunky Sole Loafer",
       "hindiName": "",
       "category": "footwear",
       "categoryTitle": "Footwear",
@@ -1903,7 +1903,7 @@
       "discountPercent": 10,
       "maxDiscount": 1500,
       "minOrder": 1999,
-      "description": "10% instant discount on orders above \u20b91,999",
+      "description": "10% instant discount on orders above ₹1,999",
       "active": true,
       "expiresAt": "2026-12-31"
     },
@@ -1912,7 +1912,7 @@
       "discountPercent": 10,
       "maxDiscount": 1500,
       "minOrder": 1999,
-      "description": "10% instant discount on orders above \u20b91,999",
+      "description": "10% instant discount on orders above ₹1,999",
       "active": true,
       "expiresAt": "2026-12-31"
     },
@@ -1921,7 +1921,7 @@
       "discountPercent": 20,
       "maxDiscount": 3000,
       "minOrder": 4999,
-      "description": "20% privilege discount on luxury orders above \u20b94,999",
+      "description": "20% privilege discount on luxury orders above ₹4,999",
       "active": true,
       "expiresAt": "2026-12-31"
     },
@@ -1930,7 +1930,7 @@
       "discountPercent": 15,
       "maxDiscount": 500,
       "minOrder": 1499,
-      "description": "Welcome perk: Flat 15% off up to \u20b9500 on your first purchase",
+      "description": "Welcome perk: Flat 15% off up to ₹500 on your first purchase",
       "active": true,
       "expiresAt": "2026-12-31"
     }
@@ -2021,8 +2021,8 @@
     ]
   },
   "settings": {
-    "announcementText": "EXCLUSIVE LUXURY DROP: Enjoy 10% off your first order with code MIRLI10 | Complimentary Express Shipping above \u20b91,999",
-    "announcementSubText": "AUTHENTIC INDIAN CRAFTSMANSHIP \u2022 GLOBAL MINIMALIST DESIGN",
+    "announcementText": "EXCLUSIVE LUXURY DROP: Enjoy 10% off your first order with code MIRLI10 | Complimentary Express Shipping above ₹1,999",
+    "announcementSubText": "AUTHENTIC INDIAN CRAFTSMANSHIP • GLOBAL MINIMALIST DESIGN",
     "freeShippingThreshold": 1999,
     "standardShippingFee": 149,
     "codEnabled": true,
@@ -2179,6 +2179,266 @@
       "details": "Admin session authenticated for admin@mirli.store",
       "adminEmail": "admin@mirli.store",
       "timestamp": "2026-11-15T19:41:51.602Z"
+    }
+  ],
+  "payments": [
+    {
+      "id": "tx-mirli-ord-1794760767192",
+      "transactionId": "pay_MRL_sim_1794760767187",
+      "orderId": "mirli-ord-1794760767192",
+      "orderNumber": "MIRLI-54062",
+      "customerName": "Gulshan Goyal",
+      "customerEmail": "gulshan@mirli.store",
+      "paymentGateway": "Razorpay",
+      "paymentMethod": "UPI",
+      "amount": 6499,
+      "currency": "INR",
+      "status": "Paid",
+      "date": "2026-11-15T16:39:27.192Z"
+    },
+    {
+      "id": "tx-mirli-ord-1794760582955",
+      "transactionId": "pay_MRL_sim_1794760582944",
+      "orderId": "mirli-ord-1794760582955",
+      "orderNumber": "MIRLI-14178",
+      "customerName": "Gulshan Goyal",
+      "customerEmail": "gulshan@mirli.store",
+      "paymentGateway": "Razorpay",
+      "paymentMethod": "UPI",
+      "amount": 6499,
+      "currency": "INR",
+      "status": "Paid",
+      "date": "2026-11-15T16:36:22.955Z"
+    },
+    {
+      "id": "tx-mirli-ord-1794760514907",
+      "transactionId": "pay_MRL_sim_1794760514896",
+      "orderId": "mirli-ord-1794760514907",
+      "orderNumber": "MIRLI-27483",
+      "customerName": "Gulshan Goyal",
+      "customerEmail": "gulshan@mirli.store",
+      "paymentGateway": "Razorpay",
+      "paymentMethod": "UPI",
+      "amount": 6499,
+      "currency": "INR",
+      "status": "Paid",
+      "date": "2026-11-15T16:35:14.907Z"
+    },
+    {
+      "id": "tx-mirli-ord-1794760366966",
+      "transactionId": "pay_MRL_sim_1794760366955",
+      "orderId": "mirli-ord-1794760366966",
+      "orderNumber": "MIRLI-72164",
+      "customerName": "Gulshan Goyal",
+      "customerEmail": "gulshan@mirli.store",
+      "paymentGateway": "Razorpay",
+      "paymentMethod": "UPI",
+      "amount": 18847,
+      "currency": "INR",
+      "status": "Paid",
+      "date": "2026-11-15T16:32:46.966Z"
+    },
+    {
+      "id": "tx-mirli-ord-10021",
+      "transactionId": "pay_MRL_83921829",
+      "orderId": "mirli-ord-10021",
+      "orderNumber": "MIRLI-90412",
+      "customerName": "Aarav Malhotra",
+      "customerEmail": "aarav.malhotra@example.com",
+      "paymentGateway": "Razorpay",
+      "paymentMethod": "UPI",
+      "amount": 5850,
+      "currency": "INR",
+      "status": "Paid",
+      "date": "2026-11-14T11:20:00.000Z"
+    },
+    {
+      "id": "tx-mirli-ord-10020",
+      "transactionId": "pay_MRL_7740192",
+      "orderId": "mirli-ord-10020",
+      "orderNumber": "MIRLI-89301",
+      "customerName": "Priya Sharma",
+      "customerEmail": "priya.sharma@example.com",
+      "paymentGateway": "Razorpay",
+      "paymentMethod": "UPI",
+      "amount": 6800,
+      "currency": "INR",
+      "status": "Paid",
+      "date": "2026-11-10T14:40:00.000Z"
+    }
+  ],
+  "shipping": [
+    {
+      "id": "ship-mirli-ord-1794760767192",
+      "orderId": "mirli-ord-1794760767192",
+      "orderNumber": "MIRLI-54062",
+      "customerName": "Gulshan Goyal",
+      "phone": "9876543210",
+      "address": "House #88 Fashion Avenue, High Street",
+      "city": "Central Delhi",
+      "state": "Delhi",
+      "pincode": "110001",
+      "courierName": "Delhivery",
+      "trackingNumber": "DEL-90000000",
+      "dispatchDate": "2026-11-15T16:39:27.192Z",
+      "estimatedDelivery": "19 Nov 2026",
+      "status": "Manifested",
+      "shippingFee": 0
+    },
+    {
+      "id": "ship-mirli-ord-1794760582955",
+      "orderId": "mirli-ord-1794760582955",
+      "orderNumber": "MIRLI-14178",
+      "customerName": "Gulshan Goyal",
+      "phone": "9876543210",
+      "address": "House #88 Fashion Avenue, High Street",
+      "city": "Central Delhi",
+      "state": "Delhi",
+      "pincode": "110001",
+      "courierName": "BlueDart",
+      "trackingNumber": "DEL-90000142",
+      "dispatchDate": "2026-11-15T16:36:22.955Z",
+      "estimatedDelivery": "19 Nov 2026",
+      "status": "Manifested",
+      "shippingFee": 0
+    },
+    {
+      "id": "ship-mirli-ord-1794760514907",
+      "orderId": "mirli-ord-1794760514907",
+      "orderNumber": "MIRLI-27483",
+      "customerName": "Gulshan Goyal",
+      "phone": "9876543210",
+      "address": "House #88 Fashion Avenue, High Street",
+      "city": "Central Delhi",
+      "state": "Delhi",
+      "pincode": "110001",
+      "courierName": "DTDC",
+      "trackingNumber": "DEL-90000284",
+      "dispatchDate": "2026-11-15T16:35:14.907Z",
+      "estimatedDelivery": "19 Nov 2026",
+      "status": "Manifested",
+      "shippingFee": 0
+    },
+    {
+      "id": "ship-mirli-ord-1794760366966",
+      "orderId": "mirli-ord-1794760366966",
+      "orderNumber": "MIRLI-72164",
+      "customerName": "Gulshan Goyal",
+      "phone": "9876543210",
+      "address": "House #88 Fashion Avenue, High Street",
+      "city": "Central Delhi",
+      "state": "Delhi",
+      "pincode": "110001",
+      "courierName": "XpressBees",
+      "trackingNumber": "DEL-90000426",
+      "dispatchDate": "2026-11-15T16:32:46.966Z",
+      "estimatedDelivery": "19 Nov 2026",
+      "status": "Manifested",
+      "shippingFee": 0
+    },
+    {
+      "id": "ship-mirli-ord-10021",
+      "orderId": "mirli-ord-10021",
+      "orderNumber": "MIRLI-90412",
+      "customerName": "Aarav Malhotra",
+      "phone": "9876543210",
+      "address": "Villa 14B Golf Links Boulevard",
+      "city": "Central Delhi",
+      "state": "Delhi",
+      "pincode": "110003",
+      "courierName": "Delhivery",
+      "trackingNumber": "DEL-90000568",
+      "dispatchDate": "2026-11-14T11:20:00.000Z",
+      "estimatedDelivery": "17 Nov 2026",
+      "status": "Delivered",
+      "shippingFee": 0
+    },
+    {
+      "id": "ship-mirli-ord-10020",
+      "orderId": "mirli-ord-10020",
+      "orderNumber": "MIRLI-89301",
+      "customerName": "Priya Sharma",
+      "phone": "9811223344",
+      "address": "Flat 502, Tower 3 Hiranandani Estate",
+      "city": "Thane",
+      "state": "Maharashtra",
+      "pincode": "400607",
+      "courierName": "BlueDart",
+      "trackingNumber": "DEL-90000710",
+      "dispatchDate": "2026-11-10T14:40:00.000Z",
+      "estimatedDelivery": "13 Nov 2026",
+      "status": "Delivered",
+      "shippingFee": 0
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif-1",
+      "type": "order",
+      "title": "Live Concierge Active",
+      "message": "Real-time synchronization connected. Live customer orders and status events are now streaming.",
+      "read": false,
+      "createdAt": "2026-11-21T17:23:59.336Z"
+    },
+    {
+      "id": "notif-2",
+      "type": "stock",
+      "title": "Low Stock Alert",
+      "message": "Aërona Sculptural Stiletto Mule has reached low inventory (4 units remaining).",
+      "read": false,
+      "createdAt": "2026-11-21T16:23:59.336Z"
+    }
+  ],
+  "adminUsers": [
+    {
+      "id": "usr-1",
+      "name": "Executive Atelier Admin",
+      "email": "admin@mirli.store",
+      "role": "super_admin",
+      "roleTitle": "Chief Executive & Super Admin",
+      "status": "active",
+      "lastLogin": "2026-11-21T17:23:59.336Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "usr-2",
+      "name": "Rohan Verma",
+      "email": "rohan.products@goyalcollections.com",
+      "role": "product_manager",
+      "roleTitle": "Head of Product & Catalog",
+      "status": "active",
+      "lastLogin": "2026-11-20T17:23:59.336Z",
+      "createdAt": "2026-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "usr-3",
+      "name": "Priya Sharma",
+      "email": "priya.logistics@goyalcollections.com",
+      "role": "order_manager",
+      "roleTitle": "Logistics & Order Fulfillment Lead",
+      "status": "active",
+      "lastLogin": "2026-11-21T05:23:59.336Z",
+      "createdAt": "2026-01-20T00:00:00.000Z"
+    },
+    {
+      "id": "usr-4",
+      "name": "Ananya Roy",
+      "email": "ananya.support@goyalcollections.com",
+      "role": "support_manager",
+      "roleTitle": "Client Concierge & Support Specialist",
+      "status": "active",
+      "lastLogin": "2026-11-19T17:23:59.336Z",
+      "createdAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "id": "usr-5",
+      "name": "Vikramaditya Singhania",
+      "email": "vikram.finance@goyalcollections.com",
+      "role": "finance_manager",
+      "roleTitle": "Chief Financial Controller",
+      "status": "active",
+      "lastLogin": "2026-11-18T17:23:59.336Z",
+      "createdAt": "2026-02-05T00:00:00.000Z"
     }
   ]
 }
