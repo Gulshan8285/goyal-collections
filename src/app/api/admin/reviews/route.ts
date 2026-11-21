@@ -44,6 +44,8 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
+export const PUT = PATCH;
+
 export async function DELETE(request: NextRequest) {
   try {
     const auth = checkAdminAuth(request);

@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { identifier, password } = body;
+    const identifier = body.identifier || body.email;
+    const password = body.password;
 
     if (!identifier || !password) {
       return NextResponse.json(
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
         role: 'super_admin',
         name: 'Executive Atelier Admin',
       },
+      token,
     });
 
     // Set secure HTTP-only cookie
